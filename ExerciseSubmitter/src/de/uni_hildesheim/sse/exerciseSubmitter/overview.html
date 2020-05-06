@@ -1,0 +1,27 @@
+<body>
+This project realizes an exercise submission and replay mechanism for arbitrary
+exercise submission servers. As a default implementation, submission to a structured
+SVN repository is implemented (requires <i>task</i>/</i>username</i>) structures in the
+repository. Readable directories on second level are available for replay (as corrected
+submissions), read- and writable directories on second level are available for submission.
+The main configuration of the program can be stored in a system directory (to be unmodifiable
+for users) or in the main directory of the installation or jar file. For further details on the
+configuration c.f. <code>de.uni_hildesheim.sse.exerciseSubmitter.configuration.IConfiguration</code>
+and the documentation of the individual plugins.<br/>
+The following lines show an example configuration (in <code>c:\windows\exerciseSubmission.ini</code>, 
+<code>/etc/exerciseSubmission.ini</code> or the main directory of the bundling jar file where
+the classes of this program are packed in):
+<pre>
+debug = true
+protocol.1 = svn
+svn.server = https://192.168.36.128/svn/test/
+review = file
+review.storeInExercise = true
+review.resubmitExercise = true
+</pre>
+Short description: debugging is enabled, one submission server using the SVN protocol is specified,
+reviews will be stored in file (using the file review protocol). When a review is done, the results
+will be stored in the exercise (ready for resubmission). Thereby, the reviewed exercise annotated
+by <code>// REVIEW</code> comments will automatically be resubmitted to the (all) submission server(s). 
+Individual submission/review protocols may introduce further options.
+</body>

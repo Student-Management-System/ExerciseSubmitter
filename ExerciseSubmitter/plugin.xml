@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.2"?>
+<plugin>
+
+   <extension
+         point="org.eclipse.ui.propertyPages">
+   </extension>
+   
+   <extension
+         point="org.eclipse.ui.preferencePages">
+      <page
+            class="de.uni_hildesheim.sse.exerciseSubmitter.eclipse.preferences.ExerciseSubmitter"
+            id="exerciseSubmitter.preferences.PreferencePage"
+            name="Exercise Submitter"/>
+   </extension>
+   
+   <extension
+         point="org.eclipse.core.runtime.preferences">
+      <initializer class="de.uni_hildesheim.sse.exerciseSubmitter.eclipse.preferences.PreferenceInitializer"/>
+   </extension>
+   
+   <extension
+         point="org.eclipse.core.runtime.preferences">
+   </extension>
+   
+  <extension
+       point="org.eclipse.core.expressions.definitions">
+        <definition id="de.uni_hildesheim.sse.exerciseSubmitter.isProject">
+               <with
+                     variable="activeMenuSelection">
+                  <iterate ifEmpty="false">
+                     <adapt
+                           type="org.eclipse.jdt.core.IJavaProject">
+                     </adapt>
+                  </iterate>
+               </with>
+        </definition>
+   </extension>
+
+   <extension
+      point="org.eclipse.ui.commands">
+      <command
+        name = "Clear Marker"
+        id = "de.uni_hildesheim.sse.exerciseSubmitter.clearMarker"
+        description = "Clears all exercise submitter marker entries. Better: Solve the markers and submit again."
+        defaultHandler = "de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions.ClearMarkerAction"
+      />
+      <command
+        name = "Reload Server Structures"
+        id = "de.uni_hildesheim.sse.exerciseSubmitter.reloadServerStructure"
+        description = "Structures on submission server are read once upon the first submission. Availability of exercises may change and this command allows loading updated structures without terminating Eclipse."
+        defaultHandler = "de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions.ReloadServerStructureAction"
+      />
+      <command
+        name = "Replay Reviewed Version"
+        id = "de.uni_hildesheim.sse.exerciseSubmitter.reloadCorrected"
+        description = "Downloads the reviewed version of this project from the server. May override local changes."
+        defaultHandler = "de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions.ReloadCorrectedAction"
+      />
+      <command
+        name = "Show last submission"
+        id = "de.uni_hildesheim.sse.exerciseSubmitter.showSubmission"
+        description = "Displays information on the most recent submission."
+        defaultHandler = "de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions.ShowSubmissionAction"
+      />
+      <command
+        name = "Replay a Previous Version"
+        id = "de.uni_hildesheim.sse.exerciseSubmitter.reloadPrevious"
+        description = "Replays a previously submitted version from the submission server. May overwrite local changes."
+        defaultHandler = "de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions.ReloadPreviousVersionAction"
+      />
+
+      <command
+        name = "Submit"
+        id = "de.uni_hildesheim.sse.exerciseSubmitter.submit"
+        description = "Tries to submit the most recent version. Username and password must be set. The solution shall be free of errors/warnings."
+        defaultHandler = "de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions.SubmitAction"
+      />
+      
+      <command
+        name = "TEST"
+        id = "de.uni_hildesheim.sse.exerciseSubmitter.test"
+        description = "Replays some static markers for testing"
+        defaultHandler = "de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions.TestMarkerAction"
+      />
+   </extension>
+   
+   <extension
+     point="org.eclipse.ui.menus">
+     <menuContribution
+       locationURI="popup:org.eclipse.ui.popup.any?after=additions">
+       <menu
+         id="de.uni_hildesheim.sse.exerciseSubmitter"
+         label="Exercise Submitter">
+           <command
+              commandId="de.uni_hildesheim.sse.exerciseSubmitter.submit"
+              tooltip="Submits the selected project.">
+           </command>
+           <command
+              commandId="de.uni_hildesheim.sse.exerciseSubmitter.showSubmission"
+              tooltip="Displays information on the last submissions.">
+           </command>
+           <command
+              commandId="de.uni_hildesheim.sse.exerciseSubmitter.reloadPrevious"
+              tooltip="Overwrites the local version by a previously submitted version.">
+           </command>
+           <command
+              commandId="de.uni_hildesheim.sse.exerciseSubmitter.reloadCorrected"
+              tooltip="Loads reviewed submissions including review comments from the server.">
+           </command>
+           <command
+              commandId="de.uni_hildesheim.sse.exerciseSubmitter.reloadServerStructure"
+              tooltip="The submitter loads information about exercises open for submission only upon the first submission. If this information changes, exercises may become available or disappear, i.e., explicitly reloading the structures performs then a required update.">
+           </command>
+           <command
+              commandId="de.uni_hildesheim.sse.exerciseSubmitter.clearMarker"
+              tooltip="Clears problem markers created by the server communication during the last submission.">
+           </command>
+           <!--<command
+              commandId="de.uni_hildesheim.sse.exerciseSubmitter.test"
+              tooltip="UUps. This is left over from testing.">
+           </command>-->
+           <visibleWhen>
+             <reference
+                 definitionId="de.uni_hildesheim.sse.exerciseSubmitter.isProject">
+             </reference>
+           </visibleWhen>
+         </menu>
+     </menuContribution>
+   </extension>
+   
+   <!--<extension
+         point="org.eclipse.ui.popupMenus">
+      <objectContribution
+            id="de.uni_hildesheim.sse.exerciseSubmitter"
+            nameFilter="*"
+            objectClass="org.eclipse.jdt.core.IJavaProject">
+         <action 
+               class="de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions.ClearMarkerAction"
+               enablesFor="1"
+               id="de.uni_hildesheim.sse.exerciseSubmitter.clearMarker"
+               definitionId="de.uni_hildesheim.sse.exerciseSubmitter.clearMarker"
+               label="Clear Marker"
+               menubarPath="ExerciseSubmitter.menu1/group"/>
+         <action
+               class="de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions.ReloadServerStructureAction"
+               definitionId="de.uni_hildesheim.sse.exerciseSubmitter.reloadServerStructure"
+               id="de.uni_hildesheim.sse.exerciseSubmitter.reloadServerStructure"
+               label="Reload Server Structures"
+               menubarPath="ExerciseSubmitter.menu1/group">
+         </action>
+         <action 
+               class="de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions.ReloadCorrectedAction"
+               enablesFor="1"
+               id="de.uni_hildesheim.sse.exerciseSubmitter.reloadCorrected"
+               definitionId="de.uni_hildesheim.sse.exerciseSubmitter.reloadCorrected"
+               label="Replay Reviewed Version"
+               menubarPath="ExerciseSubmitter.menu1/group"/>
+         <action 
+               class="de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions.ReloadPreviousVersionAction"
+               enablesFor="1"
+               id="de.uni_hildesheim.sse.exerciseSubmitter.reloadPrevious"
+               definitionId="de.uni_hildesheim.sse.exerciseSubmitter.reloadPrevious"
+               label="Replay a Previous Version"
+               menubarPath="ExerciseSubmitter.menu1/group"/>
+         <action 
+               class="de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions.ShowSubmissionAction"
+               enablesFor="1"
+               id="de.uni_hildesheim.sse.exerciseSubmitter.showSubmission"
+               definitionId="de.uni_hildesheim.sse.exerciseSubmitter.showSubmission"
+               label="Show last submission"
+               menubarPath="ExerciseSubmitter.menu1/group"/>
+         <action 
+               class="de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions.SubmitAction"
+               enablesFor="1"
+               id="de.uni_hildesheim.sse.exerciseSubmitter.submit"
+               definitionId="de.uni_hildesheim.sse.exerciseSubmitter.submit"
+               label="Submit"
+               menubarPath="ExerciseSubmitter.menu1/group"/>
+         <menu
+               id="ExerciseSubmitter.menu1"
+               label="ExerciseSubmitter"
+               path="additions">
+            <groupMarker name="ExerciseSubmitter.start"/>
+            <separator name="group"/>
+            <groupMarker name="ExerciseSubmitter.end"/>
+         </menu>
+      </objectContribution>
+      <objectContribution
+            adaptable="false"
+            id="de.uni_hildesheim.sse.exerciseSubmitter.Marker"
+            objectClass="org.eclipse.core.resources.IMarker">
+         <action 
+               class="de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions.ClearSelectedMarkerAction"
+               enablesFor="1"
+               id="de.uni_hildesheim.sse.exerciseSubmitter.clearProblemMarker"
+               definitionId="de.uni_hildesheim.sse.exerciseSubmitter.clearProblemMarker"
+               label="Delete"
+               menubarPath="ExerciseSubmitter.menu2"/>
+         <menu
+               id="ExerciseSubmitter.menu2"
+               label="Delete Exercise Marker"
+               path="additions">
+         </menu>
+      </objectContribution>
+   </extension>-->
+   <extension
+      id="de.uni_hildesheim.sse.exerciseSubmitter.submitProblem"
+      point="org.eclipse.core.resources.markers">
+      <super type="org.eclipse.core.resources.problemmarker"/>
+      <attribute name="priority"/>
+      <attribute name="done"/>
+      <attribute name="userEditable"/>  
+      <attribute name="tool"/>  
+      <persistent value="true" />
+    </extension>
+
+</plugin>
