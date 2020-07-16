@@ -196,7 +196,7 @@ public class GUI extends JPanel implements ActionListener {
      * Auswahlbox, welche die zur Verfuegung stehenden Abgabemoeglichkeiten
      * bereit stellt.
      */
-    private JComboBox abgabewahl;
+    private JComboBox<String> abgabewahl;
 
     /**
      * Speichert das Kommunikationsobjekt.
@@ -236,8 +236,7 @@ public class GUI extends JPanel implements ActionListener {
         if (IConfiguration.INSTANCE.isExplicitGroupNameEnabled()) {
             name = new JLabel("Gruppen/Teamname:");
             auth.add(name);
-            groupName = new JTextField(
-                IConfiguration.INSTANCE.getGroupName(), 20);
+            groupName = new JTextField(IConfiguration.INSTANCE.getGroupName(), 20);
             auth.add(groupName);
         }
         name = new JLabel("Benutzername:");
@@ -246,8 +245,7 @@ public class GUI extends JPanel implements ActionListener {
         auth.add(userName);
         passwd = new JLabel("Passwort:");
         auth.add(passwd);
-        password = new JPasswordField(IConfiguration.INSTANCE.getPassword()
-            , 20);
+        password = new JPasswordField(IConfiguration.INSTANCE.getPassword(), 20);
         auth.add(password);
         ch = new JCheckBox("Passwort speichern");
         ch.setSelected(IConfiguration.INSTANCE.getUserName().length() > 0
@@ -273,7 +271,7 @@ public class GUI extends JPanel implements ActionListener {
         tabbedPane = new JTabbedPane();
         linksoben.setLayout(new BorderLayout());
         linksunten.setLayout(new BorderLayout());
-        abgabewahl = new JComboBox();
+        abgabewahl = new JComboBox<>();
         linksoben.add(abgabewahl, BorderLayout.NORTH);
         pane2.add(linksoben, BorderLayout.NORTH);
 
@@ -305,8 +303,7 @@ public class GUI extends JPanel implements ActionListener {
         linksunten.add(lbuttons, BorderLayout.CENTER);
         pane2.add(linksunten, BorderLayout.SOUTH);
 
-        title = BorderFactory.createTitledBorder(blackline,
-            "Loesungsverzeichnis:");
+        title = BorderFactory.createTitledBorder(blackline, "Loesungsverzeichnis:");
         linksunten.setBorder(title);
         links.setLayout(new GridLayout(2, 2));
         links.add(linksoben);
@@ -319,8 +316,7 @@ public class GUI extends JPanel implements ActionListener {
         rechtsoben = new JPanel();
         rechtsoben.setLayout(new GridLayout(4, 1));
         abgfeld = new JTextArea(4, 20);
-        rechtsoben.add(new JScrollPane(abgfeld,
-            JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
+        rechtsoben.add(new JScrollPane(abgfeld, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
             JScrollPane.HORIZONTAL_SCROLLBAR_NEVER));
         abgfeld.setMargin(new Insets(5, 5, 5, 5));
         abgfeld.setEditable(false);
@@ -372,6 +368,7 @@ public class GUI extends JPanel implements ActionListener {
     public static void main(String[] args) {
         // IConfiguration.setDefaultInstance();
         javax.swing.SwingUtilities.invokeLater(new Runnable() {
+            @Override
             public void run() {
                 new GUI();
             }
