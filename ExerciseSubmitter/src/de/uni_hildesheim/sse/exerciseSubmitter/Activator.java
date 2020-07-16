@@ -14,6 +14,7 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.resource.ImageDescriptor;
+import org.eclipse.jface.resource.ResourceLocator;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 
@@ -202,7 +203,9 @@ public class Activator extends AbstractUIPlugin {
      *                if this plug-in did not start up properly
      * @since 2.00
      */
+    // checkstyle: stop exception type check: Forced by Eclipse API
     public void start(BundleContext context) throws Exception {
+    // checkstyle: resume exception type check
         super.start(context);
         baseURL = context.getBundle().getEntry("/");
         
@@ -293,9 +296,10 @@ public class Activator extends AbstractUIPlugin {
      * @return the image descriptor
      * 
      * @since 2.00
+     * @version 2.10
      */
     public static ImageDescriptor getImageDescriptor(String path) {
-        return imageDescriptorFromPlugin(PLUGIN_ID, path);
+        return ResourceLocator.imageDescriptorFromBundle(PLUGIN_ID, path).get();
     }
     
     /**
