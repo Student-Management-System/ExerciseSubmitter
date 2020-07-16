@@ -125,9 +125,8 @@ public class Activator extends AbstractUIPlugin {
      * 
      * @since 2.00
      */
-    @SuppressWarnings("unchecked")
     public static void ensureTaskTags() {
-        Hashtable options = JavaCore.getOptions();
+        Hashtable<String, String> options = JavaCore.getOptions();
 
         List<String> tasks = new ArrayList<String>();
         StringTokenizer tokens = new StringTokenizer(options.get(
@@ -210,6 +209,7 @@ public class Activator extends AbstractUIPlugin {
         if (isValidString(IConfiguration.INSTANCE.getUserName()) 
             && isValidString(IConfiguration.INSTANCE.getPassword())) {
             Thread t = new Thread(new Runnable() {
+                @Override
                 public void run() {
                     try {
                         SubmissionCommunication.getInstances(
@@ -264,7 +264,9 @@ public class Activator extends AbstractUIPlugin {
      *                if this method fails to shut down this plug-in
      * @since 2.00
      */
+    // checkstyle: stop exception type check: Forced by Eclipse API
     public void stop(BundleContext context) throws Exception {
+    // checkstyle: resume exception type check
         timer.cancel();
         plugin = null;
         SubmissionCommunication.clearInstances();
