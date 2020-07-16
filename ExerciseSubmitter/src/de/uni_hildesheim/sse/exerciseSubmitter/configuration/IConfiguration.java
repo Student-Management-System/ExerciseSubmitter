@@ -2,7 +2,6 @@ package de.uni_hildesheim.sse.exerciseSubmitter.configuration;
 
 import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
@@ -13,13 +12,8 @@ import de.uni_hildesheim.sse.exerciseSubmitter.submission.
 /**
  * Implements the basic access to configuration data. Configuration files are
  * stored as plain old java key-value lists. The global configuration may be
- * located in
- * <ul>
- * <li><code>/etc/exerciseSubmission.ini</code> on Unix/Linux systems</li>
- * <li><code>c:\windows\exerciseSubmission.ini</code> on Windows systems</li>
- * <li><code>esPlugin.ini</code> in main installation directory or the jar
- * file (has a lower precedence than the following ones)</li>
- * </ul>
+ * located in <code>esPlugin.ini</code> in main installation directory or the jar
+ * file.
  * Typical format:
  * 
  * <pre>
@@ -32,8 +26,9 @@ import de.uni_hildesheim.sse.exerciseSubmitter.submission.
  * may represent protocol specific options.
  * 
  * @author Alexander Schmehl
+ * @author El-Sharkawy
  * @since 1.00
- * @version 2.00
+ * @version 2.10
  */
 public abstract class IConfiguration {
 
@@ -42,28 +37,14 @@ public abstract class IConfiguration {
      * 
      * @since 2.00
      */
-    public static final IConfiguration INSTANCE;
+    public static final IConfiguration INSTANCE = new EclipseConfiguration();
     
     /**
      * Stores the global configuration properties.
      * 
      * @since 1.00
      */
-    private static Properties globalprop = new Properties();
-
-    /**
-     * Initializes the configuration instance depending on the executing
-     * environment.
-     * 
-     * @since 2.00
-     */
-    static {
-        if (OsTypes.isEclipse()) {
-            INSTANCE = new EclipseConfiguration();
-        } else {
-            INSTANCE = new DefaultConfiguration();
-        }
-    }
+    private static Properties globalprop;
 
     /**
      * Creates a new configuration instance and initializes {@link #globalprop}.
@@ -73,27 +54,19 @@ public abstract class IConfiguration {
      */
     public IConfiguration() {
 
-        try {
-            File f = new File(OsTypes.getOSType().getGlobalConfigPrefix()
-                + "exerciseSubmission.ini");
-            InputStream is = null;
-            if (f.exists()) {
-                is = new FileInputStream(f);
-            } else {
-                is = IConfiguration.class
-                    .getResourceAsStream("/esPlugin.ini");
-            }
+        try (InputStream is = IConfiguration.class.getResourceAsStream("/esPlugin.ini")) {
             if (null == is) {
                 handleError(new CommunicationException(
-                    CommunicationException.SubmissionPublicMessage.
-                    CONFIGURATION_ERROR, new Throwable()));
+                    CommunicationException.SubmissionPublicMessage.CONFIGURATION_ERROR, new Throwable()));
             } else {
+                if (null == globalprop) {
+                    globalprop = new Properties();
+                }
                 globalprop.load(new BufferedInputStream(is));
             }
         } catch (IOException e) {
             handleError(new CommunicationException(
-                CommunicationException.SubmissionPublicMessage.
-                CONFIGURATION_ERROR, e));
+                CommunicationException.SubmissionPublicMessage.CONFIGURATION_ERROR, e));
         }
     }
 
