@@ -14,17 +14,14 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-import org.eclipse.core.runtime.Preferences;
 import org.eclipse.equinox.security.storage.ISecurePreferences;
 import org.eclipse.equinox.security.storage.SecurePreferencesFactory;
 import org.eclipse.equinox.security.storage.StorageException;
-import org.eclipse.jface.preference.IPreferenceStore;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import de.uni_hildesheim.sse.exerciseSubmitter.Activator;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     CommunicationException;
@@ -44,17 +41,8 @@ class EclipseConfiguration extends AbstractUserConfiguration {
      * 
      * @since 2.20
      */
-    private ISecurePreferences securePreferences 
-        = SecurePreferencesFactory.getDefault();
+    private ISecurePreferences securePreferences = SecurePreferencesFactory.getDefault();
 
-    /**
-     * Stores the non-secure preferences instances where to store passwords to.
-     * 
-     * @since 2.20
-     */
-    @SuppressWarnings("unused")
-    private IPreferenceStore nonSecurePreferences 
-        = Activator.getDefault().getPreferenceStore();
     
     /**
      * Creates a new eclipse configuration.
@@ -71,8 +59,7 @@ class EclipseConfiguration extends AbstractUserConfiguration {
         } catch (StorageException se) {
         }
         try {
-            groupName = securePreferences.get(
-                PreferenceConstants.GROUPNAME, "");
+            groupName = securePreferences.get(PreferenceConstants.GROUPNAME, "");
         } catch (StorageException se) {
         }
     }
@@ -96,31 +83,18 @@ class EclipseConfiguration extends AbstractUserConfiguration {
      * 
      * @since 2.00
      */
-    @SuppressWarnings("deprecation")
     @Override
     public void store() {
-        Preferences preferences = 
-            Activator.getDefault().getPluginPreferences();
-        preferences.setValue(PreferenceConstants.PASSWORD,
-            "");
-        preferences.setValue(PreferenceConstants.USERNAME, 
-            "");
-        preferences.setValue(PreferenceConstants.GROUPNAME, 
-            "");
-    
         try {
-            securePreferences.put(
-                PreferenceConstants.USERNAME, userName, false);
+            securePreferences.put(PreferenceConstants.USERNAME, userName, false);
         } catch (StorageException se) {
         }
         try {
-            securePreferences.put(
-                PreferenceConstants.PASSWORD, password, true); 
+            securePreferences.put(PreferenceConstants.PASSWORD, password, true); 
         } catch (StorageException se) {
         }
         try {
-            securePreferences.put(
-                PreferenceConstants.GROUPNAME, groupName, false);
+            securePreferences.put(PreferenceConstants.GROUPNAME, groupName, false);
         } catch (StorageException se) {
         }
     }
@@ -137,8 +111,7 @@ class EclipseConfiguration extends AbstractUserConfiguration {
         String intendedProjectName = targetDir.getName();
         File projectFile = new File(targetDir, ".project");
         if (projectFile.exists()) {
-            DocumentBuilderFactory factory 
-                = DocumentBuilderFactory.newInstance();
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             try {
                 boolean modified = false;
                 DocumentBuilder builder = factory.newDocumentBuilder();
@@ -156,8 +129,7 @@ class EclipseConfiguration extends AbstractUserConfiguration {
                     }
                 }
                 if (modified) {
-                    Transformer transformer = TransformerFactory.
-                        newInstance().newTransformer();
+                    Transformer transformer = TransformerFactory.newInstance().newTransformer();
                     DOMSource source = new DOMSource(document);
                     FileOutputStream os = new FileOutputStream(projectFile);
                     StreamResult result = new StreamResult( os );
