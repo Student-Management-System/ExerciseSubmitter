@@ -36,6 +36,7 @@ public abstract class IConfiguration {
      * Stores the configuration instance.
      * 
      * @since 2.00
+     * @version 2.10
      */
     public static final IConfiguration INSTANCE = new EclipseConfiguration();
     
@@ -51,6 +52,7 @@ public abstract class IConfiguration {
      * Calls {@link #handleError(CommunicationException)} in the case of errors.
      * 
      * @since 2.00
+     * @version 2.10
      */
     public IConfiguration() {
 
