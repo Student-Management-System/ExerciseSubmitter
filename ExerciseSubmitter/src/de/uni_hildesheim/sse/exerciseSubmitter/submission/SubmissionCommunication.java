@@ -8,10 +8,10 @@ import de.uni_hildesheim.sse.exerciseSubmitter.configuration.IConfiguration;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils;
 
 /**
- * Defines the communication between submission client (eclipse plugin) and the
- * server.
+ * Defines the communication between submission client (Eclipse plugin) and the server.
  * 
  * @author Alexander Schmehl
+ * @author El-Sharkawy
  * @since 1.0
  * @version 2.10
  */
@@ -117,11 +117,7 @@ public abstract class SubmissionCommunication implements IPathFactory {
      * @since 1.00
      */
     public String getUserName(boolean forSubmission) {
-        if (forSubmission) {
-            return usernameForSubmission;
-        } else {
-            return username;
-        }
+        return (forSubmission) ? usernameForSubmission : username;
     }
     
     /**
@@ -136,11 +132,7 @@ public abstract class SubmissionCommunication implements IPathFactory {
      * @since 2.10
      */
     public String getTargetFolder() {
-        if (null != explicitTargetFolder) {
-            return explicitTargetFolder;
-        } else {
-            return getUserName(true);
-        }
+        return (null != explicitTargetFolder) ? explicitTargetFolder : getUserName(true);
     }
     
     /**
@@ -442,10 +434,8 @@ public abstract class SubmissionCommunication implements IPathFactory {
      * 
      * @since 2.00
      */
-    public static final synchronized List<SubmissionCommunication> getInstances(
-        String userName, String password, boolean asReviewer, 
-        String submissionUser, CommunicationInstanceListener listener, 
-        String explicitTargetFolder)
+    public static final synchronized List<SubmissionCommunication> getInstances(String userName, String password,
+        boolean asReviewer, String submissionUser, CommunicationInstanceListener listener, String explicitTargetFolder)
         throws CommunicationException {
 
         // use the dummy listener if none is provided
@@ -454,8 +444,7 @@ public abstract class SubmissionCommunication implements IPathFactory {
         }
 
         // do an update if instances are present
-        if (null != commInstances && commInstances.size() > 0 
-            && null == submissionUser) {
+        if (null != commInstances && commInstances.size() > 0 && null == submissionUser) {
             return updateCommunicationInstances(listener);
         }
 
@@ -468,31 +457,25 @@ public abstract class SubmissionCommunication implements IPathFactory {
         try {
             int step = 1;
             for (int i = 1; i <= count; i++) {
-                String protocol =
-                    IConfiguration.INSTANCE.getProperty("protocol." + i, "");
+                String protocol = IConfiguration.INSTANCE.getProperty("protocol." + i, "");
                 listener.doStep("Contacting Server " + i, step++);
                 SubmissionCommunication comm = null;
                 for (SubmissionPlugin plugin : SubmissionPlugin.getPlugins()) {
                     if (plugin.getProtocol().equalsIgnoreCase(protocol)) {
-                        comm = plugin.createInstance(userName, password, 
-                            asReviewer, explicitTargetFolder);
+                        comm = plugin.createInstance(userName, password, asReviewer, explicitTargetFolder);
                     }
                 }
                 if (null == comm) {
-                    throw new CommunicationException(
-                        CommunicationException.SubmissionPublicMessage.
-                        PLUGIN_NOT_HANDLED, new Throwable());
+                    throw new CommunicationException(CommunicationException.SubmissionPublicMessage.PLUGIN_NOT_HANDLED,
+                        new Throwable());
                 } else {
                     if (null != submissionUser && submissionUser.length() > 0) {
                         comm.setUserNameForSubmission(submissionUser);
                     }
-                    listener.doStep(
-                        "Validating user data and reading file system "
-                        + "structure on server " + i, step++);
+                    listener.doStep("Validating user data and reading file system structure on server " + i, step++);
                     if (!comm.authenticateUser()) {
                         throw new CommunicationException(
-                            CommunicationException.SubmissionPublicMessage.
-                            AUTHENTICATION_ERROR, new Throwable());
+                            CommunicationException.SubmissionPublicMessage.AUTHENTICATION_ERROR, new Throwable());
                     }
                     commInstances.add(comm);
                 }
@@ -506,8 +489,7 @@ public abstract class SubmissionCommunication implements IPathFactory {
         }
 
         if (commInstances.isEmpty()) {
-            GuiUtils.openDialog(GuiUtils.DialogType.ERROR,
-                "No server accessible!\nPlease contact your supervisor.");
+            GuiUtils.openDialog(GuiUtils.DialogType.ERROR, "No server accessible!\nPlease contact your supervisor.");
         }
         return commInstances;
     }
@@ -532,8 +514,7 @@ public abstract class SubmissionCommunication implements IPathFactory {
         listener.notifyContactingStarted();
         listener.notifyNumberOfServers(commInstances.size());
         for (int i = 0; i < commInstances.size(); i++) {
-            listener.doStep("Querying file structure of server " + (i + 1),
-                i + 1);
+            listener.doStep("Querying file structure of server " + (i + 1), i + 1);
             //commInstances.get(i).reInitialize();
         }
         listener.notifyContactingFinished(false);
@@ -550,9 +531,7 @@ public abstract class SubmissionCommunication implements IPathFactory {
     private static int getConfiguratedProtocolsCount() {
         int count = 1;
         while (count >= 0) {
-            String protocol =
-                IConfiguration.INSTANCE.getProperty("protocol." + count, "")
-                    .toLowerCase();
+            String protocol = IConfiguration.INSTANCE.getProperty("protocol." + count, "").toLowerCase();
             if (protocol.length() == 0) {
                 break;
             }
