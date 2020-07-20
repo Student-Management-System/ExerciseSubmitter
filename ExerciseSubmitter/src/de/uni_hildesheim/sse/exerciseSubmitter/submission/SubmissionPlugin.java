@@ -59,14 +59,11 @@ public abstract class SubmissionPlugin {
      *        this may show additional exercises to be submitted but
      *        finally the access permissions on the server should 
      *        prevent from misuse
-     * @param explicitTargetFolder the explicit target folder if not to be 
-     *            derived from username (<b>null</b> otherways)
      * @return the created instance
      * 
      * @since 2.10
      */
-    public abstract SubmissionCommunication createInstance(String userName,
-            String password, boolean asReviewer, String explicitTargetFolder);
+    public abstract SubmissionCommunication createInstance(String userName, String password, boolean asReviewer);
 
     /**
      * Registers a given plugin instance. An instance will not be registered

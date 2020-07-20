@@ -6,6 +6,12 @@ import java.util.List;
 
 import de.uni_hildesheim.sse.exerciseSubmitter.configuration.IConfiguration;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils;
+import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils.DialogType;
+import net.ssehub.exercisesubmitter.protocol.backend.NetworkException;
+import net.ssehub.exercisesubmitter.protocol.backend.ServerNotFoundException;
+import net.ssehub.exercisesubmitter.protocol.backend.UnknownCredentialsException;
+import net.ssehub.exercisesubmitter.protocol.frontend.Assignment;
+import net.ssehub.exercisesubmitter.protocol.frontend.SubmitterProtocol;
 
 /**
  * Defines the communication between submission client (Eclipse plugin) and the server.
@@ -13,7 +19,7 @@ import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils;
  * @author Alexander Schmehl
  * @author El-Sharkawy
  * @since 1.0
- * @version 2.10
+ * @version 2.1
  */
 public abstract class SubmissionCommunication implements IPathFactory {
 
@@ -23,6 +29,11 @@ public abstract class SubmissionCommunication implements IPathFactory {
      * @since 2.0
      */
     private static List<SubmissionCommunication> commInstances;
+    
+    /**
+     * Handles the connection to the <b>Student Management System</b>.
+     */
+    private SubmitterProtocol mgmtProtocol;
     
     /**
      * Stores the name of the user for submissions to the server.
@@ -44,13 +55,6 @@ public abstract class SubmissionCommunication implements IPathFactory {
      * @since 1.00
      */
     private String password;
-
-    /**
-     * Stores the explicit target folder name.
-     * 
-     * @since 2.10
-     */
-    private String explicitTargetFolder;
     
     /**
      * Creates a new submission communication instance. To be called by an
@@ -62,21 +66,38 @@ public abstract class SubmissionCommunication implements IPathFactory {
      *            {@link #usernameForSubmission})
      * @param password
      *            the password of <code>username</code>
-     * @param explicitTargetFolder the explicit target folder if not to be 
-     *            derived from username (<b>null</b> otherways)
      * 
      * @since 2.10
      */
-    protected SubmissionCommunication(String username, String password, 
-        String explicitTargetFolder) {
+    protected SubmissionCommunication(String username, String password) {
+        this.mgmtProtocol = new SubmitterProtocol(IConfiguration.INSTANCE.getProperty("auth.server"),
+            IConfiguration.INSTANCE.getProperty("stdmgmt.server"),
+            IConfiguration.INSTANCE.getProperty("course"),
+            IConfiguration.INSTANCE.getProperty("svn.server"));
+        try {
+            mgmtProtocol.login(username, password);
+        } catch (UnknownCredentialsException e) {
+            GuiUtils.openDialog(DialogType.ERROR, "Credentials are unknown by the student management system, "
+                + "please check that you use your RZ credentials.");
+        } catch (ServerNotFoundException e) {
+            GuiUtils.openDialog(DialogType.ERROR, IConfiguration.INSTANCE.getProperty("stdmgmt.server") + " could not "
+                + "be reached, please check your internet connection.");
+        }
         this.username = username;
         this.usernameForSubmission = username;
         this.password = password;
-        this.explicitTargetFolder = explicitTargetFolder;
     }
 
     // ---------------------------- getter/setter -----------------------------
 
+    /**
+     * Provides the API to query the <b>Student Management System</b>.
+     * @return The connection to the <b>Student Management System</b>.
+     */
+    public SubmitterProtocol getStudentMgmtProtocol() {
+        return mgmtProtocol;
+    }
+    
     /**
      * Cleans up this instance.
      * 
@@ -121,32 +142,6 @@ public abstract class SubmissionCommunication implements IPathFactory {
     }
     
     /**
-     * Returns the relative "folder" name on the server where to 
-     * store the submission depending on the user data (the task
-     * is not included in this name and must be combined in a 
-     * submission server/protocol specific way in concrete 
-     * subclasses).
-     * 
-     * @return the target "folder" name
-     * 
-     * @since 2.10
-     */
-    public String getTargetFolder() {
-        return (null != explicitTargetFolder) ? explicitTargetFolder : getUserName(true);
-    }
-    
-    /**
-     * Changes the explicit target folder [not nice].
-     * 
-     * @param explicitTargetFolder the new explicit target folder
-     * 
-     * @since 1.00
-     */
-    public void setExplicitTargetFolder(String explicitTargetFolder) {
-        this.explicitTargetFolder = explicitTargetFolder;
-    }
-    
-    /**
      * Specifies a special user name for submission. The user name
      * given in the constructor must have write access to the 
      * appropriate directories on the server.
@@ -188,14 +183,43 @@ public abstract class SubmissionCommunication implements IPathFactory {
 
     /**
      * Returns the top-level path/task/exercise names of exercises that can
-     * currently be submitted.
+     * currently be submitted/reviewed/replayed.
      * 
+     * @param mode specifies which kind of assignments shall be returned, must not be <tt>null</tt>.
      * @return the top-level path/task/exercise names of exercises that can
-     *         currently be submitted
+     *         currently be submitted/reviwed/replayed
      * 
-     * @since 1.00
+     * @since 2.1
      */
-    public abstract String[] getAvailableForSubmission();
+    public List<Assignment> getAssignments(PermissionMode mode) {
+        List<Assignment> availableAssignments;
+        try {
+            switch (mode) {
+            case SUBMISSION:
+                availableAssignments = mgmtProtocol.getOpenAssignments();
+                break;
+            case REVIEW:
+                availableAssignments = mgmtProtocol.getReviewableAssignments();
+                break;
+            case REPLAY:
+                availableAssignments = mgmtProtocol.getReviewedAssignments();
+                break;
+            case INVISIBLE:
+                availableAssignments = new ArrayList<>();
+                break;
+            default:
+                System.err.println("Unexpected mode '" + mode + "' returning list of submitable assignments.");
+                availableAssignments = mgmtProtocol.getOpenAssignments();
+                break;
+            }
+        } catch (NetworkException e) {
+            GuiUtils.openDialog(DialogType.ERROR, "Could not query Studenten Management System to retrieve list of "
+                + "open assignments.");
+            availableAssignments = new ArrayList<>();
+        }
+        
+        return availableAssignments;
+    }
     
     /**
      * Returns the user names (second-level directories).
@@ -212,7 +236,7 @@ public abstract class SubmissionCommunication implements IPathFactory {
      * @param submission
      *            the information on directory (and its subdirectories) to be
      *            submitted
-     * @param task
+     * @param assignment
      *            top-level path/task/exercise name representing the
      *            task/exercise to be submitted. Valid values can be obtained by
      *            calling {@link #getAvailableForSubmission()}.
@@ -223,9 +247,20 @@ public abstract class SubmissionCommunication implements IPathFactory {
      * 
      * @since 1.00
      */
-    public abstract Executable<ISubmission> submit(ISubmission submission,
-        String task) throws CommunicationException;
+    public abstract Executable<ISubmission> submit(ISubmission submission, Assignment assignment)
+        throws CommunicationException;
 
+    /**
+     * Returns the top-level path/task/exercise names of exercises that can
+     * currently be submitted.
+     * 
+     * @return the top-level path/task/exercise names of exercises that can
+     *         currently be submitted
+     * 
+     * @since 1.00
+     */
+    public abstract List<Assignment> getAvailableForSubmission();
+    
     /**
      * Returns the top-level path/task/exercise names of exercises that can
      * currently be replayed.
@@ -235,7 +270,7 @@ public abstract class SubmissionCommunication implements IPathFactory {
      * 
      * @since 1.00
      */
-    public abstract String[] getSubmissionsForReplay();
+    public abstract List<Assignment> getSubmissionsForReplay();
 
     /**
      * Returns the top-level path/task/exercise names of exercises that can
@@ -246,27 +281,23 @@ public abstract class SubmissionCommunication implements IPathFactory {
      * 
      * @since 2.00
      */
-    public abstract String[] getSubmissionsForReview();
+    public abstract List<Assignment> getSubmissionsForReview();
     
     /**
      * Returns the contents of the last submission on <code>task</code>.
      * 
-     * @param task the task name to return the directory listing for
+     * @param assignment The task to return the directory listing for
      * @return the directory listing for <code>task</code>
-     * @throws CommunicationException
-     *             error by network, file input/output, ...
+     * @throws CommunicationException error by network, file input/output, ...
      * 
      * @since 2.00
      */
-    public abstract List<SubmissionDirEntry> getLastContents(String task) 
-        throws CommunicationException;
+    public abstract List<SubmissionDirEntry> getLastContents(Assignment assignment) throws CommunicationException;
     
     /**
      * Returns the list of versioned /dated submissions of a concrete task.
      * 
-     * @param task
-     *            the top-level path/task/exercise the dated submissions should
-     *            be returned for
+     * @param assignment The submission that should be returned
      * 
      * @return a list of versioned/dated submissions, may be empty
      * 
@@ -275,8 +306,8 @@ public abstract class SubmissionCommunication implements IPathFactory {
      * 
      * @since 2.00
      */
-    public abstract List<IVersionedSubmission> getSubmissionsForReplay(
-        String task) throws CommunicationException;
+    public abstract List<IVersionedSubmission> getSubmissionsForReplay(Assignment assignment)
+        throws CommunicationException;
 
     /**
      * Re-initializes data stored in this communication object.
@@ -286,55 +317,38 @@ public abstract class SubmissionCommunication implements IPathFactory {
      * 
      * @since 2.00
      */
-    public abstract void reInitialize() 
-        throws CommunicationException;
+    public abstract void reInitialize() throws CommunicationException;
 
     /**
      * Replays a server-stored submission.
      * 
-     * @param submission
-     *            the information where to store the submission on the local
-     *            computer
-     * @param task
-     *            top-level path/task/exercise name representing the
-     *            task/exercise to be submitted. Valid values can be obtained by
-     *            calling {@link #getSubmissionsForReplay()}.
-     * @param listener
-     *            an optional listener to be informed on the progress of the
-     *            replay operation
-     * @return submission (might be refactored to also return an
-     *         {@link Executable})
-     * @throws CommunicationException
-     *             any wrapped error occurrences
+     * @param submission The information where to store the submission on the local computer
+     * @param assignment The assignment representing the task/exercise to be submitted. Valid values can be obtained by
+     *        calling {@link #getSubmissionsForReplay()}.
+     * @param listener An optional listener to be informed on the progress of the replay operation
+     * @return submission (might be refactored to also return an {@link Executable})
+     * @throws CommunicationException If any wrapped error occurrences
      * 
      * @since 1.00
      */
-    public abstract ISubmission replaySubmission(ISubmission submission,
-        String task, ProgressListener<ISubmission> listener)
-        throws CommunicationException;
+    public abstract ISubmission replaySubmission(ISubmission submission, Assignment assignment,
+        ProgressListener<ISubmission> listener) throws CommunicationException;
     
     /**
      * Replays an entire task stored (i.e. all submissions) to a local 
      * directory.
      * 
-     * @param path 
-     *            the target-path where to replay the submissions to 
-     *            (contents will be deleted before replaying the submissions)
-     * @param task 
-     *            top-level path/task/exercise name representing the
-     *            task/exercise to be submitted. Valid values can be obtained by
-     *            calling {@link #getSubmissionsForReplay()}.
-     * @param listener
-     *            an optional listener to be informed on the progress of the
-     *            replay operation
+     * @param path The target-path where to replay the submissions to (contents will be deleted before replaying the
+     *     submissions)
+     * @param assignment The assignment representing the task/exercise to be submitted. Valid values can be obtained by
+     *     calling {@link #getSubmissionsForReplay()}.
+     * @param listener An optional listener to be informed on the progress of the replay operation
      * @param factory an instance able to create paths in the file system
-     * @throws CommunicationException
-     *             any wrapped error occurrences
+     * @throws CommunicationException If any wrapped error occurrences
      * 
      * @since 2.00
      */
-    public abstract void replayEntireTask(File path, String task, 
-        ProgressListener<ISubmission> listener, 
+    public abstract void replayEntireTask(File path, Assignment assignment, ProgressListener<ISubmission> listener, 
         IPathFactory factory) throws CommunicationException;
 
     /**
@@ -426,8 +440,6 @@ public abstract class SubmissionCommunication implements IPathFactory {
      *        this may show additional exercises to be submitted but
      *        finally the access permissions on the server should 
      *        prevent from misuse
-     * @param explicitTargetFolder the explicit target folder if not to be 
-     *            derived from username (<b>null</b> otherways)
      * @return the list of communication instances
      * @throws CommunicationException
      *             thrown if any error occurs
@@ -435,7 +447,7 @@ public abstract class SubmissionCommunication implements IPathFactory {
      * @since 2.00
      */
     public static final synchronized List<SubmissionCommunication> getInstances(String userName, String password,
-        boolean asReviewer, String submissionUser, CommunicationInstanceListener listener, String explicitTargetFolder)
+        boolean asReviewer, String submissionUser, CommunicationInstanceListener listener)
         throws CommunicationException {
 
         // use the dummy listener if none is provided
@@ -462,7 +474,7 @@ public abstract class SubmissionCommunication implements IPathFactory {
                 SubmissionCommunication comm = null;
                 for (SubmissionPlugin plugin : SubmissionPlugin.getPlugins()) {
                     if (plugin.getProtocol().equalsIgnoreCase(protocol)) {
-                        comm = plugin.createInstance(userName, password, asReviewer, explicitTargetFolder);
+                        comm = plugin.createInstance(userName, password, asReviewer);
                     }
                 }
                 if (null == comm) {
@@ -563,15 +575,10 @@ public abstract class SubmissionCommunication implements IPathFactory {
      * 
      * @since 2.00
      */
-    public static final List<SubmissionCommunication> getInstances(
-        IConfiguration conf, String submissionUser, boolean asReviewer, 
-        CommunicationInstanceListener listener) throws CommunicationException {
-        String explicitTargetFolder = null;
-        if (conf.isExplicitGroupNameEnabled()) {
-            explicitTargetFolder = conf.getGroupName();
-        }
-        return getInstances(conf.getUserName(), conf.getPassword(), 
-            asReviewer, submissionUser, listener, explicitTargetFolder);
+    public static final List<SubmissionCommunication> getInstances(IConfiguration conf, String submissionUser,
+         boolean asReviewer, CommunicationInstanceListener listener) throws CommunicationException {
+        
+        return getInstances(conf.getUserName(), conf.getPassword(), asReviewer, submissionUser, listener);
     }
 
     /**

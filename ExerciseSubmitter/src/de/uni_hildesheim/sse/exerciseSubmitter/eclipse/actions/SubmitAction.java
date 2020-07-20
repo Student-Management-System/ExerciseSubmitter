@@ -2,13 +2,13 @@ package de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 
 import de.uni_hildesheim.sse.exerciseSubmitter.configuration.IConfiguration;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.tests.ClientSidedTest;
+import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.AssignmentProjectMap;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.ISubmissionProject;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.ServerAuthentication;
@@ -36,44 +36,17 @@ public class SubmitAction extends AbstractSubmissionAction {
         super();
     }
 
-    /**
-     * Performs this action.
-     * <p>
-     * This method is called by the proxy action when the action has been
-     * triggered. Implement this method to do the actual work.
-     * </p>
-     * <p>
-     * <b>Note:</b> If the action delegate also implements
-     * <code>IActionDelegate2</code>, then this method is not invoked but
-     * instead the <code>runWithEvent(IAction, Event)</code> method is called.
-     * </p>
-     * This method validates the server connections.
-     * 
-     * @param action the action proxy that handles the presentation 
-     *        portion of the action
-     * 
-     * @since 2.00
-     */
+    @Override
     public void run(IAction action) {
-        if (!handleProjectListErrors() 
-            && checkSubmissionPrerequisites(getSelectedProjects())) {
-            List<SubmissionCommunication> connections = 
-                GuiUtils.validateConnections(IConfiguration.INSTANCE, null);
+        if (!handleProjectListErrors() && checkSubmissionPrerequisites(getSelectedProjects())) {
+            List<SubmissionCommunication> connections = GuiUtils.validateConnections(IConfiguration.INSTANCE, null);
             MessageListener messageListener = new MessageListener();
-            for (Iterator<SubmissionCommunication> iterator = connections
-                .iterator(); iterator.hasNext();) {
-                SubmissionCommunication comm = iterator.next();
-                if (ServerAuthentication.getInstance().
-                    authenticate(comm, true)) {
-                    Map<String, ISubmissionProject> exercisesMap = mapProjects(
-                        comm.getAvailableForSubmission(), false, comm);
-                    for (Iterator<Map.Entry<String, 
-                            ISubmissionProject>> iter = exercisesMap.
-                            entrySet().iterator(); iter.hasNext();) {
-                        Map.Entry<String, ISubmissionProject> entry = iter
-                            .next();
-                        GuiUtils.submit(messageListener, entry.getValue(), 
-                            comm, entry.getKey());
+            for (SubmissionCommunication comm : connections) {
+                if (ServerAuthentication.getInstance().authenticate(comm, true)) {
+                    AssignmentProjectMap exercisesMap = mapProjects(comm.getAvailableForSubmission(), false, comm);
+                    
+                    for (AssignmentProjectMap.Entry entry : exercisesMap) {
+                        GuiUtils.submit(messageListener, entry.getProject(), comm, entry.getAssignment());
                     }
                 }
             }

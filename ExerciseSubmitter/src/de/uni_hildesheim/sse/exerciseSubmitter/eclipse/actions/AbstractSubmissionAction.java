@@ -1,10 +1,8 @@
 package de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
@@ -25,11 +23,13 @@ import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PlatformUI;
 
 import de.uni_hildesheim.sse.exerciseSubmitter.configuration.IConfiguration;
+import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.AssignmentProjectMap;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.ISubmissionProject;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.ServerAuthentication;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     SubmissionCommunication;
+import net.ssehub.exercisesubmitter.protocol.frontend.Assignment;
 
 /**
  * Realizes an abstract action class for implementing submission actions to the
@@ -65,10 +65,8 @@ public abstract class AbstractSubmissionAction extends AbstractHandler
      * 
      * @since 2.00
      */
-    protected List<ISubmissionProject> getSelectedProjects(
-        SubmissionCommunication comm) {
-        return ServerAuthentication.getInstance().mapProjects(
-            selectedProjects, comm);
+    protected List<ISubmissionProject> getSelectedProjects(SubmissionCommunication comm) {
+        return ServerAuthentication.getInstance().mapProjects(selectedProjects, comm);
     }
     
     /**
@@ -92,19 +90,17 @@ public abstract class AbstractSubmissionAction extends AbstractHandler
      * @since 2.00
      */
     protected boolean handleProjectListErrors() {
+        boolean hasErrors = false;
         if (selectedProjects.isEmpty()) {
-            GuiUtils.openDialog(GuiUtils.DialogType.INFORMATION,
-                "No project selected for submission.");
-            return true;
+            GuiUtils.openDialog(GuiUtils.DialogType.INFORMATION, "No project selected for submission.");
+            hasErrors = true;
         }
         if (IConfiguration.INSTANCE.getUserName().length() == 0) {
-            GuiUtils.openDialog(
-                GuiUtils.DialogType.INFORMATION,
-                "No user name provided in preferences (see "
+            GuiUtils.openDialog(GuiUtils.DialogType.INFORMATION, "No user name provided in preferences (see "
                 + "Window|Preferences|Exercise Submitter).");
-            return true;
+            hasErrors = true;
         }
-        return false;
+        return hasErrors;
     }
 
     /**
@@ -125,30 +121,28 @@ public abstract class AbstractSubmissionAction extends AbstractHandler
      * 
      * @since 2.00
      */
-    protected Map<String, ISubmissionProject> mapProjects(String[] exercises,
-        boolean replay, SubmissionCommunication comm) {
+    protected AssignmentProjectMap mapProjects(List<Assignment> exercises, boolean replay,
+        SubmissionCommunication comm) {
+        
         List<ISubmissionProject> projects = getSelectedProjects(comm);
-        Map<String, ISubmissionProject> exercisesMap = 
-            new HashMap<String, ISubmissionProject>();
+        AssignmentProjectMap exercisesMap = new AssignmentProjectMap();
 
         // enumerate the exercise (directory) names first
         List<String> exercisesList = new ArrayList<String>();
-        for (String exercise : exercises) {
-            exercisesList.add(exercise);
+        for (Assignment exercise : exercises) {
+            exercisesList.add(exercise.getName());
             exercisesMap.put(exercise, null);
         }
 
         // destructive mapping between Eclipse projects and (directory) names
-        List<ISubmissionProject> tmpProjects = 
-            new ArrayList<ISubmissionProject>(projects);
-        for (Iterator<ISubmissionProject> iter = tmpProjects.iterator(); iter
-            .hasNext();) {
+        List<ISubmissionProject> tmpProjects = new ArrayList<ISubmissionProject>(projects);
+        for (Iterator<ISubmissionProject> iter = tmpProjects.iterator(); iter.hasNext();) {
             ISubmissionProject project = iter.next();
             String name = project.getName();
             if (exercisesMap.containsKey(name)) {
                 iter.remove();
                 exercisesList.remove(name);
-                exercisesMap.put(name, project);
+                exercisesMap.set(name, project);
             }
         }
 
@@ -158,12 +152,12 @@ public abstract class AbstractSubmissionAction extends AbstractHandler
             exercisesList.size() > 0 && iter.hasNext();) {
             ISubmissionProject project = iter.next();
 
-            Object[] result = GuiUtils.showListDialog("Project '"
-                + project.getName() + "' does not match an exercise on the "
-                + "server", "Select the corresponding exercise",
-                exercisesList, true);
+            Object[] result = GuiUtils.showListDialog("Project '" + project.getName() + "' does not match an exercise "
+                + "on the server", "Select the corresponding exercise", exercisesList, true);
             if (null != result && result.length > 0) {
-                exercisesMap.put((String) result[0], project);
+                // exercisesList should contain only names of already stored Assignments -> exercisesMap.set is usable
+                String name = (String) result[0];
+                exercisesMap.set(name, project);
                 exercisesList.remove(result[0]);
             } else {
                 cancel = true;
@@ -171,20 +165,12 @@ public abstract class AbstractSubmissionAction extends AbstractHandler
         }
 
         // remove unmapped exercise (directories)
-        for (Iterator<Map.Entry<String, ISubmissionProject>> iter = exercisesMap
-            .entrySet().iterator(); iter.hasNext();) {
-            Map.Entry<String, ISubmissionProject> entry = iter.next();
-            if (null == entry.getValue()) {
-                iter.remove();
-            }
-        }
+        exercisesMap.prune();
 
         // emit an error if required
-        if (!cancel && exercisesMap.size() == 0) {
-            GuiUtils.openDialog(GuiUtils.DialogType.INFORMATION,
-                "Currently no exercises for "
-                + (replay ? "replay are available"
-                : "submission are enabled") + " on the server.");
+        if (!cancel && exercisesMap.isEmpty()) {
+            GuiUtils.openDialog(GuiUtils.DialogType.INFORMATION, "Currently no exercises for "
+                + (replay ? "replay are available" : "submission are enabled") + " on the server.");
         }
 
         return exercisesMap;
@@ -298,8 +284,7 @@ public abstract class AbstractSubmissionAction extends AbstractHandler
     public static <T> int indexOf(T[] array, T value) {
         int pos = -1;
         for (int i = 0; pos < 0 && i < array.length; i++) {
-            if ((value == null && array[i] == null) 
-                || (value != null && value.equals(array[i]))) {
+            if ((value == null && array[i] == null) || (value != null && value.equals(array[i]))) {
                 pos = i;
             }
         }

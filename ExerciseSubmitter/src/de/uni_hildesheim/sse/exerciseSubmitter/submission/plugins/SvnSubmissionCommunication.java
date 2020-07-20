@@ -1,15 +1,12 @@
 package de.uni_hildesheim.sse.exerciseSubmitter.submission.plugins;
 
 import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.LineNumberReader;
 import java.nio.channels.FileChannel;
 import java.text.Format;
 import java.text.SimpleDateFormat;
@@ -22,9 +19,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
-import java.util.StringTokenizer;
 
-import org.tmatesoft.svn.core.SVNAuthenticationException;
 import org.tmatesoft.svn.core.SVNCommitInfo;
 import org.tmatesoft.svn.core.SVNDirEntry;
 import org.tmatesoft.svn.core.SVNErrorCode;
@@ -44,24 +39,28 @@ import org.tmatesoft.svn.core.wc.admin.SVNChangeEntry;
 
 import de.uni_hildesheim.sse.exerciseSubmitter.Activator;
 import de.uni_hildesheim.sse.exerciseSubmitter.configuration.IConfiguration;
-import de.uni_hildesheim.sse.exerciseSubmitter.submission.FileChecksumUtil;
-import de.uni_hildesheim.sse.exerciseSubmitter.submission.IPathFactory;
-import de.uni_hildesheim.sse.exerciseSubmitter.submission.ISubmission;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.AbstractExecutable;
+import de.uni_hildesheim.sse.exerciseSubmitter.submission.CommonStuff;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     CommunicationException;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.Executable;
-import de.uni_hildesheim.sse.exerciseSubmitter.submission.CommonStuff;
-import de.uni_hildesheim.sse.exerciseSubmitter.submission.SubmissionDirEntry;
-import de.uni_hildesheim.sse.exerciseSubmitter.submission.SubmissionPlugin;
-import de.uni_hildesheim.sse.exerciseSubmitter.submission.ProgressListener;
+import de.uni_hildesheim.sse.exerciseSubmitter.submission.FileChecksumUtil;
+import de.uni_hildesheim.sse.exerciseSubmitter.submission.IPathFactory;
+import de.uni_hildesheim.sse.exerciseSubmitter.submission.ISubmission;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.IVersionedSubmission;
+import de.uni_hildesheim.sse.exerciseSubmitter.submission.PermissionMode;
+import de.uni_hildesheim.sse.exerciseSubmitter.submission.ProgressListener;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     SubmissionCommunication;
+import de.uni_hildesheim.sse.exerciseSubmitter.submission.SubmissionDirEntry;
+import de.uni_hildesheim.sse.exerciseSubmitter.submission.SubmissionPlugin;
+import net.ssehub.exercisesubmitter.protocol.backend.NetworkException;
+import net.ssehub.exercisesubmitter.protocol.frontend.Assignment;
+import net.ssehub.exercisesubmitter.protocol.frontend.SubmissionTarget;
 
 /**
- * Realizes a specific server communication for subversion (SVN) per https und
- * webdav. This class uses classes from the svnkit.
+ * Realizes a specific server communication for subversion (SVN) per https and webdav.
+ * This class uses classes from the svnkit.
  * 
  * @author Alexander Schmehl (initial)
  * @since 1.00
@@ -69,6 +68,15 @@ import de.uni_hildesheim.sse.exerciseSubmitter.submission.
  */
 public class SvnSubmissionCommunication extends SubmissionCommunication {
 
+    /**
+     * Initializes svnkit.
+     * 
+     * @since 2.00
+     */
+    static {
+        DAVRepositoryFactory.setup();
+    }
+    
     /**
      * Defines the associated plugin instance.
      * 
@@ -79,33 +87,24 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
         /**
          * Creates an instance of the described submission communication class.
          * 
-         * @param username
-         *            the name of the user which will communicate with a
-         *            concrete communication server
-         * @param password
-         *            the password of <code>username</code>
-         * @param asReviewer initialize this instance in reviewer mode - 
-         *        this may show additional exercises to be submitted but
-         *        finally the access permissions on the server should 
-         *        prevent from misuse
-         * @param explicitTargetFolder the explicit target folder if not to be 
-         *            derived from username (<b>null</b> otherways)
+         * @param username the name of the user which will communicate with a concrete communication server
+         * @param password the password of <code>username</code>
+         * @param asReviewer initialize this instance in reviewer mode. This may show additional exercises to be
+         *        submitted but finally the access permissions on the server should prevent from misuse
          * @return the created instance
          * 
          * @since 2.00
          */
         @Override
-        public SubmissionCommunication createInstance(String userName,
-            String password, boolean asReviewer, String explicitTargetFolder) {
-            return new SvnSubmissionCommunication(userName, 
-                password, asReviewer, explicitTargetFolder);
+        public SubmissionCommunication createInstance(String userName, String password, boolean asReviewer) {
+            
+            return new SvnSubmissionCommunication(userName, password, asReviewer);
         }
 
         /**
-         * Returns the name of the protocol implemented by this class. The
-         * string will be considered when reading the communication based
-         * submission configuration. <i>Note:</i> Currently no mechanism for
-         * avoiding duplicate protocol names is realized.
+         * Returns the name of the protocol implemented by this class. The string will be considered when reading the
+         * communication based submission configuration. <i>Note:</i> Currently no mechanism for avoiding
+         * duplicate protocol names is realized.
          * 
          * @return the name of the implemented protocol
          * 
@@ -122,30 +121,25 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
      * 
      * @since 2.00
      */
-    private static final Format SUBMISSION_FORMAT = 
-        new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
+    private static final Format SUBMISSION_FORMAT = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
 
     /**
-     * Defines the commit mode. If <code>true</code>, the repository is
-     * cleared by deleting all files in the directory before committing the new
-     * resources. Otherwise, incremental changes are identified and sent.
+     * Defines the commit mode. If <code>true</code>, the repository is cleared by deleting all files in the directory
+     * before committing the new resources. Otherwise, incremental changes are identified and sent.
      * 
      * @since 2.00
      */
-    private static final boolean DELETE_COMMITED_RESOURCES_BEFORE_COMMIT 
-        = false;
+    private static final boolean DELETE_COMMITED_RESOURCES_BEFORE_COMMIT = false;
     
     /**
-     * Stores the server including protocol, hostname, repository and basic
-     * path.
+     * Stores the server including protocol, hostname, repository and basic path.
      * 
      * @since 1.00
      */
     private String server;
 
     /**
-     * Stores the optional log server including protocol, hostname, repository 
-     * and basic path.
+     * Stores the optional log server including protocol, hostname, repository  and basic path.
      * 
      * @since 1.00
      */
@@ -156,21 +150,21 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
      * 
      * @since 1.00
      */
-    private ArrayList<String> availableForSubmission = new ArrayList<String>();
+    private List<Assignment> availableForSubmission = new ArrayList<>();
 
     /**
      * Stores the tasks/exercises available for replay.
      * 
      * @since 1.00
      */
-    private ArrayList<String> availableForReplay = new ArrayList<String>();
+    private List<Assignment> availableForReplay = new ArrayList<>();
 
     /**
      * Stores the tasks/exercises available for review.
      * 
      * @since 2.00
      */
-    private ArrayList<String> availableForReview = new ArrayList<String>();
+    private List<Assignment> availableForReview = new ArrayList<>();
     
     /**
      * Stores the instance representing the SVN repository.
@@ -187,8 +181,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
     private SVNRepository logRepository;
 
     /**
-     * Stores the authentication manager used to authenticate the user against
-     * the repository on {@link #server}.
+     * Stores the authentication manager used to authenticate the user against the repository on {@link #server}.
      * 
      * @since 2.00
      */
@@ -205,30 +198,20 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
      * Creates a new submission communication instance. To be called by the
      * {@link #PLUGIN} instance.
      * 
-     * @param username
-     *            the name of the user which will communicate with a concrete
-     *            communication server
-     * @param password
-     *            the password of <code>username</code>
-     * @param asReviewer initialize this instance in reviewer mode - 
-     *        this may show additional exercises to be submitted but
-     *        finally the access permissions on the server should 
-     *        prevent from misuse
-     * @param explicitTargetFolder the explicit target folder if not to be 
-     *            derived from username (<b>null</b> otherways)
+     * @param username the nmme of the user which will communicate with a concrete communication server
+     * @param password the password of <code>username</code>
+     * @param asReviewer initialize this instance in reviewer mode. This may show additional exercises to be submitted
+     *        but finally the access permissions on the server should prevent from misuse
      * 
      * @since 2.10
      */
-    private SvnSubmissionCommunication(String username, String password, 
-        boolean asReviewer, String explicitTargetFolder) {
-        super(username, password, explicitTargetFolder);
+    private SvnSubmissionCommunication(String username, String password, boolean asReviewer) {
+        super(username, password);
 
         this.asReviewer = asReviewer;
         // do self-configuration
-        this.server = normalizeServerName(
-            IConfiguration.INSTANCE.getProperty("svn.server"));
-        this.logServer = normalizeServerName(
-            IConfiguration.INSTANCE.getProperty("svn.log.server"));
+        this.server = normalizeServerName(IConfiguration.INSTANCE.getProperty("svn.server"));
+        this.logServer = normalizeServerName(IConfiguration.INSTANCE.getProperty("svn.log.server"));
     }
 
     /**
@@ -280,11 +263,10 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
     }
 
     /**
-     * Returns if this communication instance allows the replay of (reviewed)
-     * submissions.
+     * Returns if this communication instance allows the replay of (reviewed) submissions.
      * 
-     * @return <code>true</code> if the communication instance/protocol allows
-     *         the replay of submissions, <code>false</code> else
+     * @return <code>true</code> if the communication instance/protocol allows the replay of submissions,
+     * <code>false</code> else
      * 
      * @since 2.00
      */
@@ -293,20 +275,9 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
     }
 
     /**
-     * Initializes svnkit.
+     * Authenticates the user by his/her stored data. This method calls {@link #reInitialize}.
      * 
-     * @since 2.00
-     */
-    static {
-        DAVRepositoryFactory.setup();
-    }
-
-    /**
-     * Authenticates the user by his/her stored data. This method calls
-     * {@link #reInitialize}.
-     * 
-     * @return <code>true</code>, if the user was authenticated,
-     *         <code>false</code> else
+     * @return <code>true</code>, if the user was authenticated, <code>false</code> else
      * @throws CommunicationException
      *             in the case of any (protocol specific) error
      * 
@@ -351,8 +322,8 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
         // it will return a special authentication manager for eclipse which
         // will not work for our purposes
         if (null == authManager) {
-            authManager = new DefaultSVNAuthenticationManager(null, true,
-                getUserName(false), getPassword());
+            authManager = new DefaultSVNAuthenticationManager(null, true, getUserName(false),
+                getPassword().toCharArray(), null, null);
         }
         return authManager;
     }
@@ -365,221 +336,114 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
      * 
      * @since 2.00
      */
-    @SuppressWarnings("unchecked")
-    public void reInitialize()
-        throws CommunicationException {
-        availableForSubmission.clear();
-        availableForReplay.clear();
-        availableForReview.clear();
-        Collection entries;
-
-        // retrieve main repository directory contents
-        try {
-            entries = repository.getDir("", -1, null, (Collection) null);
-        } catch (SVNAuthenticationException e) {
-            throw new CommunicationException(
-                CommunicationException.SubmissionPublicMessage.
-                INVALID_USER_PASSWORD, e);
-        } catch (SVNException e) {
-            throw new CommunicationException(CommunicationException.
-                SubmissionPublicMessage.INVALID_REPOSITORY_STRUCTURE, e);
+    public void reInitialize() throws CommunicationException {
+        availableForSubmission = getAssignments(PermissionMode.SUBMISSION);
+        availableForReplay = getAssignments(PermissionMode.REPLAY);
+        availableForReview = getAssignments(PermissionMode.REVIEW);
+        if (asReviewer) {
+            availableForSubmission.addAll(availableForReview);
         }
-
-        // select and store directory entries
-        Iterator iterator = entries.iterator();
-        ArrayList<SVNDirEntry> dirs = new ArrayList<SVNDirEntry>();
-        while (iterator.hasNext()) {
-            SVNDirEntry entry = (SVNDirEntry) iterator.next();
-            if (entry.getKind() == SVNNodeKind.DIR) {
-                dirs.add(entry);
-            }
-        }
-
-        Map<String, PermissionMode> permissions = readPermissions();
-        for (SVNDirEntry dir : dirs) {
-            boolean done = false;
-            if (null != permissions) {
-                String absPath = dir.getName();
-                if (!absPath.startsWith("/")) {
-                    absPath = "/" + absPath;
-                }
-                PermissionMode mode = permissions.get(absPath);
-                if (null != mode) {
-                    done = true;
-                    switch (mode) {
-                    case REPLAY:
-                        availableForReplay.add(dir.getName());
-                        break;
-                    case REVIEW:
-                        availableForReview.add(dir.getName());
-                        if (asReviewer) {
-                            availableForSubmission.add(dir.getName());
-                        }
-                        break;
-                    case SUBMISSION:
-                        availableForSubmission.add(dir.getName());
-                        break;
-                    case INVISIBLE:
-                        break;
-                    default:
-                        done = false;
-                        break;
-                    }
-                }
-            } 
-            if (!done) {
-                try {
-                    if (isRepositoryWritable(server + dir.getName() + "/"
-                        + getTargetFolder())) {
-                        availableForSubmission.add(dir.getName());
-                    } else {
-                        repository.getDir(dir.getName(), -1, null,
-                            (Collection) null);
-                        availableForReplay.add(dir.getName());
-                        availableForReview.add(dir.getName());
-                    }
-                } catch (SVNException e) {
-                }
-            }
-        }
+        availableForSubmission.sort((a1, a2) -> a1.getName().compareTo(a2.getName()));
+        availableForReplay.sort((a1, a2)     -> a1.getName().compareTo(a2.getName()));
+        availableForReview.sort((a1, a2)     -> a1.getName().compareTo(a2.getName()));
     }
-    
+          // Belongs to reInitialize()
+//        Collection<?> entries;
+//
+//        // retrieve main repository directory contents
+//        try {
+//            entries = repository.getDir("", -1, null, (Collection<?>) null);
+//        } catch (SVNAuthenticationException e) {
+//            throw new CommunicationException(CommunicationException.SubmissionPublicMessage.INVALID_USER_PASSWORD, e);
+//        } catch (SVNException e) {
+//            throw new CommunicationException(CommunicationException.
+//                SubmissionPublicMessage.INVALID_REPOSITORY_STRUCTURE, e);
+//        }
+//
+//        // select and store directory entries
+//        Iterator<?> iterator = entries.iterator();
+//        ArrayList<SVNDirEntry> dirs = new ArrayList<SVNDirEntry>();
+//        while (iterator.hasNext()) {
+//            SVNDirEntry entry = (SVNDirEntry) iterator.next();
+//            if (entry.getKind() == SVNNodeKind.DIR) {
+//                dirs.add(entry);
+//            }
+//        }
+//
+//        Map<String, PermissionMode> permissions = readPermissions();
+//        for (SVNDirEntry dir : dirs) {
+//            boolean done = false;
+//            if (null != permissions) {
+//                String absPath = dir.getName();
+//                if (!absPath.startsWith("/")) {
+//                    absPath = "/" + absPath;
+//                }
+//                PermissionMode mode = permissions.get(absPath);
+//                if (null != mode) {
+//                    done = true;
+//                    switch (mode) {
+//                    case REPLAY:
+//                        availableForReplay.add(dir.getName());
+//                        break;
+//                    case REVIEW:
+//                        availableForReview.add(dir.getName());
+//                        if (asReviewer) {
+//                            availableForSubmission.add(dir.getName());
+//                        }
+//                        break;
+//                    case SUBMISSION:
+//                        availableForSubmission.add(dir.getName());
+//                        break;
+//                    case INVISIBLE:
+//                        break;
+//                    default:
+//                        done = false;
+//                        break;
+//                    }
+//                }
+//            } 
+//            if (!done) {
+//                try {
+//                    if (isRepositoryWritable(server + dir.getName() + "/" + getTargetFolder())) {
+//                        availableForSubmission.add(dir.getName());
+//                    } else {
+//                        repository.getDir(dir.getName(), -1, null, (Collection<?>) null);
+//                        availableForReplay.add(dir.getName());
+//                        availableForReview.add(dir.getName());
+//                    }
+//                } catch (SVNException e) {
+//                }
+//            }
+//        }
     /**
      * Returns the top-level path/task/exercise names of exercises that can
      * currently be reviewed.
      * 
-     * @return the top-level path/task/exercise names of exercises that can
-     *         currently be reviewed
+     * @return the top-level path/task/exercise names of exercises that can currently be reviewed
      * 
      * @since 2.00
      */
-    public String[] getSubmissionsForReview() {
-        return sortnconvert(availableForReview);
-    }
-    
-    /**
-     * Defines the basic task permissions.
-     * 
-     * @author Holger Eichelberger
-     * @since 2.00
-     * @version 2.00
-     */
-    private enum PermissionMode {
-        
-        /**
-         * Denotes an invisible task.
-         * 
-         * @since 2.00
-         */
-        INVISIBLE,
-        
-        /**
-         * Denotes a task ready for submission.
-         * 
-         * @since 2.00
-         */
-        SUBMISSION,
-        
-        /**
-         * Denotes a task being in the review phase.
-         * 
-         * @since 2.00
-         */
-        REVIEW,
-        
-        /**
-         * Denotes a task being ready for replay.
-         * 
-         * @since 2.00
-         */
-        REPLAY;
-    }
-    
-    /**
-     * Reads all permissions from the repository.
-     * 
-     * @return all permissions stored in the repository, may be
-     *         <b>null</b> if this mechanism is not activated 
-     *         (legacy mode)
-     * 
-     * @since 2.00
-     */
-    private Map<String, PermissionMode> readPermissions() {
-        Map<String, PermissionMode> result = null;
-        try {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            repository.getFile("permissions", -1, null, out);
-            LineNumberReader in = new LineNumberReader(
-                new InputStreamReader(new ByteArrayInputStream(
-                    out.toByteArray())));
-
-            result = new HashMap<String, PermissionMode>();
-            String line;
-            do {
-                line = in.readLine();
-                if (null != line) {
-                    StringTokenizer tokenizer = new StringTokenizer(line, "\t");
-                    if (2 == tokenizer.countTokens()) {
-                        String path = tokenizer.nextToken();
-                        String mode = tokenizer.nextToken();
-                        if (path.length() > 0 && mode.length() > 0) {
-                            try {
-                                result.put(path, PermissionMode.valueOf(mode));
-                            } catch (Exception e) {
-                            }
-                        }
-                    }
-                }
-            } while (null != line && in.ready());
-            in.close();
-            out.close();
-        } catch (Exception e) {
-        }
-        return result;
+    public List<Assignment> getSubmissionsForReview() {
+        return availableForReview;
     }
 
-    /**
-     * Returns the list of versioned /dated submissions of a concrete task.
-     * Reviewers will always receive the entire list of submissions, 
-     * participants will see the entire list only while submission but the 
-     * latest (reviewed) version while replay phase.
-     * 
-     * @param task
-     *            the top-level path/task/exercise the dated submissions should
-     *            be returned for
-     * 
-     * @return a list of versioned/dated submissions, may be empty
-     * 
-     * @throws CommunicationException
-     *             if any communication error occurs
-     * 
-     * @since 2.00
-     */
-    @SuppressWarnings("unchecked")
-    public List<IVersionedSubmission> getSubmissionsForReplay(String task)
-        throws CommunicationException {
-        List<IVersionedSubmission> result = 
-            new ArrayList<IVersionedSubmission>();
+    @Override
+    public List<IVersionedSubmission> getSubmissionsForReplay(Assignment assignment) throws CommunicationException {
+        List<IVersionedSubmission> result = new ArrayList<IVersionedSubmission>();
         try {
-            if (availableForSubmission.contains(task) || asReviewer) {
-                String[] targetPaths = new String[1];
-                targetPaths[0] = task + "/" + getTargetFolder();
-                Collection revisions = repository.log(targetPaths, null, 0,
-                    repository.getLatestRevision(), false, false);
+            SubmissionTarget dest = getStudentMgmtProtocol().getPathToSubmission(assignment);
+            if (availableForSubmission.contains(assignment) || asReviewer) {
+                String[] targetPaths = new String[] {dest.getAbsolutePathInRepository()};
+                Collection<?> revisions = repository.log(targetPaths, null, 0, repository.getLatestRevision(), false,
+                    false);
                 for (Object o : revisions) {
                     SVNLogEntry entry = (SVNLogEntry) o;
-                    //unclear use of alternative, disabled 2009-11-02
-                    //if (getUserName(true).equals(entry.getAuthor())) {
-                    result.add(new SVNSubmission(entry.getDate(), entry
-                        .getRevision(), task, getTargetFolder()));
-                    //}
+                    result.add(new SVNSubmission(entry.getDate(), entry.getRevision(), dest));
                 }
             } else {
-                Collection dirs = getDirs(repository, -1, 
-                    task + "/" + getTargetFolder(), null);
+                Collection<?> dirs = getDirs(repository, -1, dest.getSubmissionPath(), null);
                 if (dirs.size() > 0) {
-                    SVNSubmission resultSubmission = new SVNSubmission(
-                        new Date(), -1, task, getTargetFolder());
+                    SVNSubmission resultSubmission = new SVNSubmission(new Date(), -1, dest);
                     resultSubmission.setDate("reviewed");
                     result.add(resultSubmission);
                 }
@@ -587,6 +451,9 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
         } catch (SVNException e) {
             throw new CommunicationException(CommunicationException.
                 SubmissionPublicMessage.PROBLEM_PREVIOUS_SUBMISSIONS, e);
+        } catch (NetworkException e) {
+            throw new CommunicationException(CommunicationException.SubmissionPublicMessage.
+                UNABLE_TO_CONTACT_STUDENT_MANAGEMENT_SERVER, e);
         }
         return result;
     }
@@ -626,38 +493,25 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
         private long revision;
 
         /**
-         * Stores the name of the user responsible for this revision.
+         * Stores the path of the associated task/exercise.
          * 
          * @since 2.00
          */
-        private String user;
-
-        /**
-         * Stores the top-level path of the associated task/exercise.
-         * 
-         * @since 2.00
-         */
-        private String task;
+        private SubmissionTarget remoteDestination;
 
         /**
          * Creates a new versioned submission instance.
          * 
-         * @param date
-         *            the date of the version
-         * @param revision
-         *            the SVN revision number
-         * @param task
-         *            the top-level path of the associated task/exercise
-         * @param user
-         *            the user responsible for this revision
+         * @param date The date of the version
+         * @param revision The SVN revision number
+         * @param remoteDestination The path of the associated task/exercise.
          * 
          * @since 2.00
          */
-        SVNSubmission(Date date, long revision, String task, String user) {
+        SVNSubmission(Date date, long revision, SubmissionTarget remoteDestination) {
             this.date = SUBMISSION_FORMAT.format(date);
             this.revision = revision;
-            this.user = user;
-            this.task = task;
+            this.remoteDestination = remoteDestination;
         }
 
         /**
@@ -694,27 +548,14 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
         }
 
         /**
-         * Returns the entire SVN directory path within the current repository
-         * including the user name.
-         * 
-         * @return the entire SVN directory path
-         * 
-         * @since 2.00
-         */
-        public String getDirectory() {
-            return composePath(task, user);
-        }
-
-        /**
-         * Returns the task as the top-level path of the associated
-         * task/exercise.
+         * Returns the location of the submitted assignment..
          * 
          * @return the top-level path
          * 
          * @since 2.00
          */
-        public String getTask() {
-            return task;
+        public SubmissionTarget getRemotePath() {
+            return remoteDestination;
         }
 
         /**
@@ -730,29 +571,15 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
     }
 
     /**
-     * Returns the top-level path/task/exercise names of exercises that can
-     * currently be submitted.
-     * 
-     * @return the top-level path/task/exercise names of exercises that can
-     *         currently be submitted
-     * 
-     * @since 1.00
-     */
-    public String[] getAvailableForSubmission() {
-        return sortnconvert(availableForSubmission);
-    }
-    
-    /**
      * Returns the user names (second-level directories).
      * 
      * @return the second-level user names
      * 
      * @since 2.00
      */
-    @SuppressWarnings("unchecked")
     public List<String> getUserNames() {
         List<String> result = new ArrayList<String>();
-        String topLevelDir = null;
+        Assignment topLevelDir = null;
         if (!availableForSubmission.isEmpty()) {
             topLevelDir = availableForSubmission.get(0);
         } else if (!availableForReplay.isEmpty()) {
@@ -760,10 +587,9 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
         }
         if (null != topLevelDir) {
             try {
-                Collection entries = repository.getDir(
-                    topLevelDir + "/", -1, null, (Collection) null);
-                for (Iterator iter = entries.iterator(); iter.hasNext();) {
-                    SVNDirEntry entry = (SVNDirEntry) iter.next();
+                Collection<SVNDirEntry> entries = repository.getDir(topLevelDir + "/", -1, null,
+                    SVNDirEntry.DIRENT_ALL, (Collection<?>) null);
+                for (SVNDirEntry entry : entries) {
                     result.add(entry.getName());
                 }
             } catch (SVNException e) {
@@ -773,26 +599,9 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
         return result;
     }
 
-    /**
-     * Submits an exercise stored in the specified {@link ISubmission} instance.
-     * 
-     * @param submission
-     *            the information on directory (and its sub directories) to be
-     *            submitted
-     * @param task
-     *            top-level path/task/exercise name representing the
-     *            task/exercise to be submitted. Valid values can be obtained by
-     *            calling {@link #getAvailableForSubmission()}.
-     * @return an executable object which can be executed at once or in
-     *         combination with a progress visualization mechanism
-     * @throws CommunicationException
-     *             error by network, file input/output, ...
-     * 
-     * @since 1.00
-     */
-    public Executable<ISubmission> submit(ISubmission submission, String task)
-        throws CommunicationException {
-        return new SVNCommExecutable(submission, task);
+    @Override
+    public Executable<ISubmission> submit(ISubmission submission, Assignment assignment) throws CommunicationException {
+        return new SVNCommExecutable(submission, assignment);
     }
 
     /**
@@ -850,7 +659,6 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
      * 
      * @since 1.00
      */
-    @SuppressWarnings("unchecked")
     private static Collection<SVNDirEntry> getDirs(SVNRepository repository,
         long revision, String dir, String prefixDir, 
         Collection<SVNDirEntry> collection)
@@ -858,10 +666,9 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
         if (null == collection) {
             collection = new ArrayList<SVNDirEntry>();
         }
-        Collection c = repository
-            .getDir(dir, revision, null, (Collection) null);
-        for (Iterator i = c.iterator(); i.hasNext();) {
-            SVNDirEntry entry = (SVNDirEntry) i.next();
+        Collection<SVNDirEntry> c = repository.getDir(dir, revision, null, SVNDirEntry.DIRENT_ALL,
+            (Collection<?>) null);
+        for (SVNDirEntry entry : c) {
             String myDir = dir + "/" + entry.getRelativePath();
             if (entry.getKind() == SVNNodeKind.DIR) {
                 getDirs(repository, revision, myDir, prefixDir, collection);
@@ -889,14 +696,17 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
      * @since 2.00
      */
     public static final String getParent(String path) {
+        String parent;
         int pos = path.lastIndexOf("/");
         if (pos == 0) {
-            return "/";
+            parent = "/";
         } else if (pos > 0) {
-            return path.substring(0, pos);
+            parent = path.substring(0, pos);
         } else {
-            return "";
+            parent = "";
         }
+        
+        return parent;
     }
 
     /**
@@ -951,8 +761,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
          * 
          * @since 2.00
          */
-        private FileInfo(char modus, SVNNodeKind kind, File file, 
-            String svnPath) {
+        private FileInfo(char modus, SVNNodeKind kind, File file, String svnPath) {
             this.modus = modus;
             this.file = file;
             this.kind = kind;
@@ -998,14 +807,12 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                 } else {
                     String name = path;
                     if (modus == SVNChangeEntry.TYPE_DELETED) {
-                        if (kind == SVNNodeKind.DIR && !currentPath.isEmpty() 
-                            && currentPath.peek().equals(name)) {
+                        if (kind == SVNNodeKind.DIR && !currentPath.isEmpty() && currentPath.peek().equals(name)) {
                             editor.closeDir();
                             currentPath.pop();
                         }
                         editor.deleteEntry(name, -1);
-                    } else if (kind == SVNNodeKind.DIR
-                        && modus == SVNChangeEntry.TYPE_ADDED) {
+                    } else if (kind == SVNNodeKind.DIR && modus == SVNChangeEntry.TYPE_ADDED) {
                         editor.addDir(name, null, -1);
                         currentPath.push(name);
                     } else {
@@ -1015,13 +822,10 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                             editor.openFile(name, -1);
                         }
                         editor.applyTextDelta(name, null);
-                        SVNDeltaGenerator deltaGenerator = 
-                            new SVNDeltaGenerator();
+                        SVNDeltaGenerator deltaGenerator = new SVNDeltaGenerator();
                         try {
-                            BufferedInputStream is = new BufferedInputStream(
-                                new FileInputStream(file));
-                            String checksum = deltaGenerator.sendDelta(name,
-                                is, editor, true);
+                            BufferedInputStream is = new BufferedInputStream(new FileInputStream(file));
+                            String checksum = deltaGenerator.sendDelta(name, is, editor, true);
                             editor.closeFile(name, checksum);
                             try {
                                 is.close();
@@ -1031,8 +835,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                             // diese Exception fangen wir ab; sie sollte nie
                             // vorkommen, und auch nach einer solchen, sollte
                             // wenigstens versucht werden, den rest zu comitten
-                            throw new CommunicationException(
-                                CommunicationException.SubmissionPublicMessage.
+                            throw new CommunicationException(CommunicationException.SubmissionPublicMessage.
                                 FILE_CONFLICT, e);
                         }
 
@@ -1111,53 +914,34 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
         /**
          * Creates a new executable.
          * 
-         * @param submission
-         *            the submission to be committed
-         * @param task
-         *            the exercise/task top-level path
-         * @throws CommunicationException
-         *             any exception occurred while submitting
+         * @param submission The submission to be committed
+         * @param assignment The exercise/task top-level path
+         * @throws CommunicationExceptio If any exception occurred while submitting
          * 
          * @since 2.00
          */
-        private SVNCommExecutable(ISubmission submission, String task) 
+        private SVNCommExecutable(ISubmission submission, Assignment assignment) 
             throws CommunicationException {
-            super(submission, task);
-            if (availableForSubmission.contains(task)) {
+            super(submission, assignment);
+            if (availableForSubmission.contains(assignment)) {
                 submitDir = submission.getPath();
                 numberOfSteps = 1 + 1; // checkIn will follow
                 try {
-                    numberOfCheckoutSteps = getDirs(repository, -1,
-                        "/" + task + "/" + getTargetFolder(), null).size();
+                    SubmissionTarget destination = getStudentMgmtProtocol().getPathToSubmission(assignment);
+                    String svnPath = destination.getAbsolutePathInRepository();
+                    numberOfCheckoutSteps = getDirs(repository, -1, svnPath, null).size();
                     numberOfSteps += numberOfCheckoutSteps;
                 } catch (SVNException e) {
-                    boolean doThrow = true;
-                    // single user submission fallback? Try it with own user
-                    // name, if successful, use that and set explicit target
-                    // folder
-                    String userName = getUserName(false);
-                    if (!getTargetFolder().equals(userName)) {
-                        try {
-                            numberOfCheckoutSteps = getDirs(repository, -1,
-                                "/" + task + "/" + userName, null).size();
-                            numberOfSteps += numberOfCheckoutSteps;
-                            setExplicitTargetFolder(userName);
-                            doThrow = false;
-                        } catch (SVNException e1) {
-                            // just ignore and report original error
-                        }
-                    }
-                    if (doThrow) {
-                        throw new CommunicationException(
-                            CommunicationException.SubmissionPublicMessage.
-                            ERROR_READING_REPOSITORY_DIRECTORY_STRUCTURE, e);
-                    }
+                    throw new CommunicationException(CommunicationException.SubmissionPublicMessage.
+                        ERROR_READING_REPOSITORY_DIRECTORY_STRUCTURE, e);
+                } catch (NetworkException e) {
+                    throw new CommunicationException(CommunicationException.SubmissionPublicMessage.
+                        UNABLE_TO_CONTACT_STUDENT_MANAGEMENT_SERVER, e);
                 }
             } else {
                 numberOfSteps = 0;
-                throw new CommunicationException(
-                    CommunicationException.SubmissionPublicMessage.
-                    INVALID_SUBMISSION, new Throwable());
+                throw new CommunicationException(CommunicationException.SubmissionPublicMessage.INVALID_SUBMISSION,
+                    new Throwable());
             }
         }
 
@@ -1222,19 +1006,22 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
          * 
          * @since 2.00
          */
-        private void openTransaction() throws SVNException, 
-            CommunicationException {
+        private void openTransaction() throws SVNException, CommunicationException {
             DAVRepositoryFactory.setup();
-            repo = SVNRepositoryFactory.create(SVNURL
-                .parseURIEncoded(server + getTask() + "/" 
-                    + getTargetFolder()));
-            repo.setAuthenticationManager(
-                createAuthenticationManager());
-            handleCommitedResources(getTask());
+            SubmissionTarget destination;
+            try {
+                destination = getStudentMgmtProtocol().getPathToSubmission(getAssignment());
+            } catch (NetworkException e) {
+                throw new CommunicationException(CommunicationException.SubmissionPublicMessage.
+                    UNABLE_TO_CONTACT_STUDENT_MANAGEMENT_SERVER, e);
+            }
+            
+            repo = SVNRepositoryFactory.create(SVNURL.parseURIEncoded(destination.getSubmissionURL()));
+            repo.setAuthenticationManager(createAuthenticationManager());
+            handleCommitedResources(destination);
             if (checkIn.size() > 0) {
-                editor = repo.getCommitEditor(
-                    "Submission of " + getTask()
-                    + " by " + getUserName(false), null);
+                editor = repo.getCommitEditor("Submission of " + getAssignment().getName() + " by "
+                    + getUserName(false), null);
                 editor.openRoot(-1);
             }
             if (numberOfCheckoutSteps > 0) {
@@ -1245,8 +1032,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
         /**
          * Closes a commit transaction. 
          * 
-         * @throws SVNException any exception while communicating 
-         *         with subversion
+         * @throws SVNException any exception while communicating with subversion
          * @throws CommunicationException any (wrapped) communication error
          * 
          * @since 2.00
@@ -1260,8 +1046,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
             editor.closeDir();
 
             if (null != getListener()) {
-                getListener().notifyNextStep(
-                    "Waiting for server results...");
+                getListener().notifyNextStep("Waiting for server results...");
                 // getListener().sweep(true);
             }
             try {
@@ -1274,8 +1059,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                         msg = msg + message.getFullMessage();
                         msg = msg.substring(msg.indexOf('\n'));
                         getSubmission().setMessage(msg);
-                        getSubmission().setResult(
-                            ISubmission.Result.POST_FAILED);
+                        getSubmission().setResult(ISubmission.Result.POST_FAILED);
                     } else {
                         if (msg.length() > 0) {
                             msg = msg + "\n";
@@ -1283,8 +1067,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                         msg = msg + message.getFullMessage();
                         message = info.getErrorMessage();
                         getSubmission().setMessage(msg);
-                        getSubmission().setResult(
-                            ISubmission.Result.SUCCESSFUL);
+                        getSubmission().setResult(ISubmission.Result.SUCCESSFUL);
                     }
                 } else {
                     getSubmission().setMessage(msg);
@@ -1324,55 +1107,41 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
         }
 
         /**
-         * Is called to handle the resources to be committed. This includes the
-         * handling of resources which have been committed to the repository so
-         * far. The behavior of this method depends on
+         * Is called to handle the resources to be committed. This includes the handling of resources which have been
+         * committed to the repository so far. The behavior of this method depends on
          * {@link #DELETE_COMMITED_RESOURCES_BEFORE_COMMIT}.
          * 
-         * @param task
-         *            the top-level directory denoting the exercise/task in the
-         *            repository to be handled
-         * @throws SVNException
-         *             is thrown in the case of a communication error with the
-         *             repository
-         * @throws CommunicationException
-         *             occurs in the case of a wrapped (communication) exception
+         * @param destination Target location of the assignment to submit
+         * @throws SVNException Is thrown in the case of a communication error with the repository
+         * @throws CommunicationException Occurs in the case of a wrapped (communication) exception
          * 
          * @since 2.00
          */
-        private void handleCommitedResources(String task) throws SVNException,
+        private void handleCommitedResources(SubmissionTarget destination) throws SVNException,
             CommunicationException {
             try {
                 if (DELETE_COMMITED_RESOURCES_BEFORE_COMMIT) {
-                    Collection<SVNDirEntry> contents = getDirs(repository,
-                        repository.getLatestRevision(), task + "/" 
-                        + getTargetFolder(), null);
+                    final String trgFolder = destination.getAbsolutePathInRepository();
+                    Collection<SVNDirEntry> contents = getDirs(repository, repository.getLatestRevision(), trgFolder,
+                        null);
                     for (Iterator<SVNDirEntry> iterator = contents.iterator(); 
                         iterator.hasNext();) {
                         SVNDirEntry entry = iterator.next();
-                        checkIn.add(new FileInfo(SVNChangeEntry.TYPE_DELETED,
-                            entry.getKind(), null, task + "/" 
-                            + getTargetFolder() + "/" 
-                            + entry.getRelativePath()));
+                        checkIn.add(new FileInfo(SVNChangeEntry.TYPE_DELETED, entry.getKind(), null,
+                            trgFolder + "/" + entry.getRelativePath()));
                     }
-                    enumElementsToAdd(submitDir.getAbsolutePath(), submitDir,
-                        checkIn);
+                    enumElementsToAdd(submitDir.getAbsolutePath(), submitDir, checkIn);
                 } else {
                     preCommitTmpDir = CommonStuff.createTmpDir();
-                    svnExport(task, preCommitTmpDir.getAbsolutePath(),
-                        repository.getLatestRevision(), getListener());
+                    svnExport(destination, preCommitTmpDir.getAbsolutePath(), repository.getLatestRevision(),
+                        getListener());
 
-                    Map<String, Object> toBeDeleted = 
-                        new HashMap<String, Object>();
-                    enumElements(preCommitTmpDir.getAbsolutePath(),
-                        preCommitTmpDir, toBeDeleted, true);
-                    enumElements(submitDir.getAbsolutePath(), submitDir,
-                        toBeDeleted, false);
-                    deleteElements(preCommitTmpDir.getAbsolutePath(),
-                        preCommitTmpDir, toBeDeleted, checkIn);
+                    Map<String, Object> toBeDeleted = new HashMap<String, Object>();
+                    enumElements(preCommitTmpDir.getAbsolutePath(), preCommitTmpDir, toBeDeleted, true);
+                    enumElements(submitDir.getAbsolutePath(), submitDir, toBeDeleted, false);
+                    deleteElements(preCommitTmpDir.getAbsolutePath(), preCommitTmpDir, toBeDeleted, checkIn);
                     physicallyDeleteFiles(checkIn);
-                    copyFiles(submitDir, submitDir.getAbsolutePath(),
-                        preCommitTmpDir, checkIn);
+                    copyFiles(submitDir, submitDir.getAbsolutePath(), preCommitTmpDir, checkIn);
 
                     List<FileInfo> add = new ArrayList<FileInfo>();
                     List<FileInfo> rest = new ArrayList<FileInfo>();
@@ -1392,9 +1161,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                 numberOfSteps += checkIn.size();
                 getListener().numberofStepsChanged(numberOfSteps);
             } catch (IOException ioe) {
-                throw new CommunicationException(
-                    CommunicationException.SubmissionPublicMessage.
-                    FILE_IO_ERROR, ioe);
+                throw new CommunicationException(CommunicationException.SubmissionPublicMessage.FILE_IO_ERROR, ioe);
             }
         }
 
@@ -1570,14 +1337,14 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
          * 
          * @since 2.00
          */
-        private void copyFiles(File source, String prefix, File target,
-            List<FileInfo> elements) throws CommunicationException {
+        private void copyFiles(File source, String prefix, File target, List<FileInfo> elements)
+            throws CommunicationException {
+            
             File[] filelist = source.listFiles();
             if (null != filelist) {
                 for (File file : filelist) {
                     String svnPath = cutPrefix(prefix, file.getAbsolutePath());
-                    File tFile = new File(target.getAbsolutePath()
-                        + File.separator + svnPath);
+                    File tFile = new File(target.getAbsolutePath() + File.separator + svnPath);
                     if (file.isDirectory()) {
                         if (!tFile.exists()) {
                             String tf = tFile.getAbsolutePath();
@@ -1592,12 +1359,8 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                                 }
                                 if (!tf1.exists()) {
                                     tf1.mkdir();
-                                    elements.add(new FileInfo(
-                                        SVNChangeEntry.TYPE_ADDED,
-                                        SVNNodeKind.DIR, tf1, cutPrefix(target
-                                            .getAbsolutePath()
-                                            + File.separator, tf1
-                                            .getAbsolutePath())));
+                                    elements.add(new FileInfo(SVNChangeEntry.TYPE_ADDED, SVNNodeKind.DIR, tf1,
+                                        cutPrefix(target.getAbsolutePath() + File.separator, tf1.getAbsolutePath())));
                                 }
                             } while (pos >= 0);
                         }
@@ -1605,27 +1368,20 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                     } else {
                         if (tFile.exists()) {
                             if (!checksumUtil.equalByCheckSum(file, tFile)) {
-                                elements.add(new FileInfo(
-                                    SVNChangeEntry.TYPE_UPDATED, 
-                                    SVNNodeKind.FILE, tFile, svnPath));
+                                elements.add(new FileInfo(SVNChangeEntry.TYPE_UPDATED, SVNNodeKind.FILE, tFile,
+                                    svnPath));
                             }
                         } else {
-                            elements.add(new FileInfo(
-                                SVNChangeEntry.TYPE_ADDED, SVNNodeKind.FILE,
-                                tFile, svnPath));
+                            elements.add(new FileInfo(SVNChangeEntry.TYPE_ADDED, SVNNodeKind.FILE, tFile, svnPath));
                         }
-                        try {
-                            FileChannel sourceChannel = new FileInputStream(
-                                file).getChannel();
-                            FileChannel targetChannel = new FileOutputStream(
-                                tFile).getChannel();
-                            targetChannel.transferFrom(sourceChannel, 0,
-                                sourceChannel.size());
+                        try (FileChannel sourceChannel = new FileInputStream(file).getChannel();
+                             FileChannel targetChannel = new FileOutputStream(tFile).getChannel()) {
+                            
+                            targetChannel.transferFrom(sourceChannel, 0, sourceChannel.size());
                             sourceChannel.close();
                             targetChannel.close();
                         } catch (IOException ioe) {
-                            throw new CommunicationException(
-                                CommunicationException.SubmissionPublicMessage.
+                            throw new CommunicationException(CommunicationException.SubmissionPublicMessage.
                                 FILE_IO_ERROR, ioe);
                         }
                     }
@@ -1646,11 +1402,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
          * @since 2.00
          */
         private String cutPrefix(String prefix, String path) {
-            if (path.startsWith(prefix)) {
-                return path.substring(prefix.length(), path.length());
-            } else {
-                return path;
-            }
+            return (path.startsWith(prefix)) ? path.substring(prefix.length(), path.length()) : path;
         }
 
         /**
@@ -1680,53 +1432,32 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
 
     }
 
-    /**
-     * Returns the top-level path/task/exercise names of exercises that can
-     * currently be replayed.
-     * 
-     * @return the top-level path/task/exercise names of exercises that can
-     *         currently be replayed
-     * 
-     * @since 1.00
-     */
-    public String[] getSubmissionsForReplay() {
-        return sortnconvert(availableForReplay);
+    @Override
+    public List<Assignment> getAvailableForSubmission() {
+        return availableForSubmission;
+    }
+    
+    @Override
+    public List<Assignment> getSubmissionsForReplay() {
+        return availableForReplay;
     }
 
-    /**
-     * Replays a server-stored submission.
-     * 
-     * @param submission
-     *            the information where to store the submission on the local
-     *            computer
-     * @param task
-     *            top-level path/task/exercise name representing the
-     *            task/exercise to be submitted. Valid values can be obtained by
-     *            calling {@link #getSubmissionsForReplay()}.
-     * @param listener
-     *            an optional listener to be informed on the progress of the
-     *            replay operation
-     * @return submission (might be refactored to also return an
-     *         {@link Executable})
-     * @throws CommunicationException
-     *             any wrapped error occurrences
-     * 
-     * @since 1.00
-     */
-    public ISubmission replaySubmission(ISubmission submission, String task,
+    @Override
+    public ISubmission replaySubmission(ISubmission submission, Assignment assignment,
         ProgressListener<ISubmission> listener) throws CommunicationException {
+        
         try {
-            Collection<SVNDirEntry> contents = getDirs(repository,
-                repository.getLatestRevision(), task + "/" 
-                + getTargetFolder(), null);
+            SubmissionTarget destination = getStudentMgmtProtocol().getPathToSubmission(assignment);
+            Collection<SVNDirEntry> contents = getDirs(repository, repository.getLatestRevision(),
+                    destination.getAbsolutePathInRepository(), null);
             if (null != listener) {
                 listener.numberofStepsChanged(contents.size());
             }
             if (!contents.isEmpty()) {
                 CommonStuff.rmdir(submission.getPath(), false);
                 
-                if (availableForReplay.contains(task)) {
-                    svnExport(task, submission.getPath().getAbsolutePath(),
+                if (availableForReplay.contains(assignment)) {
+                    svnExport(destination, submission.getPath().getAbsolutePath(),
                         repository.getLatestRevision(), listener);
                     adjustFilesAfterReplay(submission.getPath());
                 }
@@ -1739,76 +1470,58 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
             }
             return submission;
         } catch (SVNException e) {
-            throw new CommunicationException(
-                CommunicationException.SubmissionPublicMessage.
-                PROBLEM_PREVIOUS_SUBMISSIONS, e);
+            throw new CommunicationException(CommunicationException.SubmissionPublicMessage
+                .PROBLEM_PREVIOUS_SUBMISSIONS, e);
+        } catch (NetworkException e) {
+            throw new CommunicationException(CommunicationException.SubmissionPublicMessage
+                .UNABLE_TO_CONTACT_STUDENT_MANAGEMENT_SERVER, e);
         }
     }
 
-    /**
-     * Replays an entire task stored (i.e. all submissions) to a local
-     * directory.
-     * 
-     * @param path 
-     *            the target-path where to replay the submissions to,
-     *            individual project directories in the path will be
-     *            cleared on the file system.  
-     * @param task 
-     *            top-level path/task/exercise name representing the
-     *            task/exercise to be submitted. Valid values can be obtained by
-     *            calling {@link #getSubmissionsForReplay()}.
-     * @param listener
-     *            an optional listener to be informed on the progress of the
-     *            replay operation
-     * @param factory an instance able to create paths in the file system
-     * @throws CommunicationException
-     *             any wrapped error occurrences
-     * 
-     * @since 2.00
-     */
-    @SuppressWarnings("unchecked")
-    public void replayEntireTask(File path, String task, 
-        ProgressListener<ISubmission> listener, 
+    @Override
+    public void replayEntireTask(File path, Assignment assignment, ProgressListener<ISubmission> listener, 
         IPathFactory factory) throws CommunicationException {
         
         if (null == factory) {
             factory = this;
         }
 
+        SubmissionTarget destFolder = null;
+        try {
+            destFolder = getStudentMgmtProtocol().getPathToSubmission(assignment);
+        } catch (NetworkException e1) {
+            throw new CommunicationException(CommunicationException.SubmissionPublicMessage.
+                UNABLE_TO_CONTACT_STUDENT_MANAGEMENT_SERVER, e1);
+        }
         SVNException thrownException = null;
         try {
-            List<Object> skipDirs = new ArrayList<Object>();
-            Collection dirs = repository.getDir(task, 
-                repository.getLatestRevision(), null, (Collection) null);
+            List<SVNDirEntry> skipDirs = new ArrayList<>();
+            Collection<SVNDirEntry> dirs = repository.getDir(destFolder.getAssignmentName(),
+                repository.getLatestRevision(), null, SVNDirEntry.DIRENT_ALL, (Collection<?>) null);
             if (null != listener) {
-                for (Object object : dirs) {
-                    SVNDirEntry entry = (SVNDirEntry) object;
+                for (SVNDirEntry entry : dirs) {
                     if (entry.getKind() == SVNNodeKind.DIR) {
-                        Collection<SVNDirEntry> contents = getDirs(repository,
-                            repository.getLatestRevision(), task + "/" 
-                            + entry.getRelativePath(), null);
+                        Collection<SVNDirEntry> contents = getDirs(repository, repository.getLatestRevision(),
+                            destFolder.getAssignmentName() + "/" + entry.getRelativePath(), null);
                         if (contents.isEmpty()) {
-                            skipDirs.add(object);
+                            skipDirs.add(entry);
                         }
                     }
                 }
             }
-            
             for (Object skip : skipDirs) {
                 dirs.remove(skip);
             }
 
             ExportEditor exportEditor = new ExportEditor(null, listener);
-            for (Object object : dirs) {
-                SVNDirEntry entry = (SVNDirEntry) object;
+            for (SVNDirEntry entry : dirs) {
                 if (entry.getKind() == SVNNodeKind.DIR) {
                     File target = factory.createPath(path, entry.getName());
                     CommonStuff.rmdir(target, false);
                     exportEditor.setTargetDirectory(target);
                     try {
-                        svnExport(task + "/" + entry.getRelativePath(), 
-                            repository.getLatestRevision(), exportEditor, 
-                            false);
+                        svnExport(destFolder.getAssignmentName() + "/" + entry.getRelativePath(),
+                            repository.getLatestRevision(), exportEditor);
                         adjustFilesAfterReplay(target);
                     } catch (SVNException e) {
                         if (null == thrownException) {
@@ -1836,34 +1549,24 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
         }
     }
     
-    /**
-     * Returns the contents of the last submission on <code>task</code>.
-     * 
-     * @param task the task name to return the directory listing for
-     * @return the directory listing for <code>task</code>
-     * 
-     * @throws CommunicationException in the case of communication errors
-     * 
-     * @since 2.00
-     */
-    public List<SubmissionDirEntry> getLastContents(String task) 
+    @Override
+    public List<SubmissionDirEntry> getLastContents(Assignment assignment) 
         throws CommunicationException {
         List<SubmissionDirEntry> result = new ArrayList<SubmissionDirEntry>();
         try {
-            Collection<SVNDirEntry> contents = getDirs(repository,
-                repository.getLatestRevision(), task + "/" + getTargetFolder(),
-                null);
+            String svnPath = getStudentMgmtProtocol().getPathToSubmission(assignment).getAbsolutePathInRepository();
+            Collection<SVNDirEntry> contents = getDirs(repository,  repository.getLatestRevision(), svnPath, null);
             for (SVNDirEntry entry : contents) {
-                SubmissionDirEntry newEnt = 
-                    new SubmissionDirEntry(entry.getRelativePath(), 
-                        entry.getSize(), entry.getDate(), 
-                        SVNNodeKind.DIR == entry.getKind(), entry.getAuthor());
+                SubmissionDirEntry newEnt = new SubmissionDirEntry(entry.getRelativePath(), entry.getSize(),
+                    entry.getDate(), SVNNodeKind.DIR == entry.getKind(), entry.getAuthor());
                 result.add(newEnt);
             }
         } catch (SVNException e) {
             throw new CommunicationException(
-                CommunicationException.SubmissionPublicMessage.
-                PROBLEM_PREVIOUS_SUBMISSIONS, e);
+                CommunicationException.SubmissionPublicMessage.PROBLEM_PREVIOUS_SUBMISSIONS, e);
+        } catch (NetworkException e) {
+            throw new CommunicationException(
+                CommunicationException.SubmissionPublicMessage.UNABLE_TO_CONTACT_STUDENT_MANAGEMENT_SERVER, e);
         }
         Collections.sort(result);
         return result;
@@ -1889,24 +1592,25 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
      * 
      * @since 1.00
      */
-    public ISubmission replaySubmission(ISubmission submission,
-        IVersionedSubmission version, ProgressListener<ISubmission> listener)
-        throws CommunicationException {
+    public ISubmission replaySubmission(ISubmission submission, IVersionedSubmission version,
+        ProgressListener<ISubmission> listener) throws CommunicationException {
+        
         if (!(version instanceof IVersionedSubmission)) {
             throw new IllegalArgumentException();
         }
+        
         try {
             SVNSubmission subm = (SVNSubmission) version;
-            Collection<SVNDirEntry> contents = getDirs(repository, 
-                subm.getRevision(), subm.getDirectory(), null);
+            SubmissionTarget dest = subm.getRemotePath();
+            Collection<SVNDirEntry> contents = getDirs(repository, subm.getRevision(),
+                dest.getAbsolutePathInRepository(), null);
             if (null != listener) {
                 listener.numberofStepsChanged(contents.size());
             }
             if (!contents.isEmpty()) {
                 CommonStuff.rmdir(submission.getPath(), false);
                 
-                svnExport(subm.getTask(), submission.getPath().
-                    getAbsolutePath(), subm.getRevision(), listener);
+                svnExport(dest, submission.getPath().getAbsolutePath(), subm.getRevision(), listener);
                 adjustFilesAfterReplay(submission.getPath());
                 
                 if (null != listener) {
@@ -1916,8 +1620,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
             }
             return submission;
         } catch (SVNException e) {
-            throw new CommunicationException(
-                CommunicationException.SubmissionPublicMessage.
+            throw new CommunicationException(CommunicationException.SubmissionPublicMessage.
                 PROBLEM_PREVIOUS_SUBMISSIONS, e);
         }
     }
@@ -1925,140 +1628,116 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
     /**
      * Exports a SVN repository or a sub path to a given directory.
      * 
-     * @param svnPath
-     *            the path in the repository to be exported
-     * @param targetPath
-     *            the file system path where to export the repository contents
-     *            to
-     * @param revision
-     *            the revision to be exported
-     * @param listener an optional progress listener to make the 
-     *            progress visible
-     * @throws SVNException
-     *             a wrapping exception in the case of (communication) errors
+     * @param destination The path in/to the repository to be exported
+     * @param targetPath The file system path where to export the repository contents to
+     * @param revision The revision to be exported
+     * @param listener an optional progress listener to make the progress visible
+     * @throws SVNException A wrapping exception in the case of (communication) errors
      * 
      * @since 1.00
      */
-    private void svnExport(String svnPath, String targetPath, long revision,
+    private void svnExport(SubmissionTarget destination, String targetPath, long revision,
         ProgressListener<ISubmission> listener) throws SVNException {
-        ExportEditor exportEditor = new ExportEditor(new File(targetPath),
-            listener);
-        svnExport(svnPath, revision, exportEditor, true);
+        
+        ExportEditor exportEditor = new ExportEditor(new File(targetPath), listener);
+        svnExport(destination, revision, exportEditor, true);
     }
 
     /**
      * Exports a SVN repository or a sub path to a given directory.
      * 
-     * @param svnPath
-     *            the path in the repository to be exported
-     * @param revision
-     *            the revision to be exported
-     * @param exportEditor
-     *            a (reusable) export editor object
-     * @param addUser add the user name to the path
-     * @throws SVNException
-     *             a wrapping exception in the case of (communication) errors
+     * @param destination The path in/to the repository to be exported
+     * @param revision The revision to be exported
+     * @param exportEditor A (reusable) export editor object
+     * @param userSpecific <tt>true</tt>Creates a user specific destination, <tt>false</tt> creates a reviewer location
+     *     that provides an URL to export all submissions.
+     * @throws SVNException A wrapping exception in the case of (communication) errors
      * 
      * @since 1.00
      */
-    private void svnExport(String svnPath, long revision,
-        ExportEditor exportEditor, boolean addUser) throws SVNException {
-        String url = server + svnPath;
-        if (addUser) {
-            url += "/" + getTargetFolder();
-        }
-        SVNRepository tmprepo = SVNRepositoryFactory.create(SVNURL
-            .parseURIEncoded(url));
+    private void svnExport(SubmissionTarget destination, long revision, ExportEditor exportEditor, boolean userSpecific)
+        throws SVNException {
+        
+        String url = userSpecific ? destination.getSubmissionURL() : destination.getAllSubmissionsURL();
+        svnExport(url, revision, exportEditor);
+    }
+    
+    /**
+     * Exports a SVN repository or a sub path to a given directory.
+     * 
+     * @param url The URL (absolute path) to a folder to export
+     * @param revision The revision to be exported
+     * @param exportEditor A (reusable) export editor object
+
+     * @throws SVNException A wrapping exception in the case of (communication) errors
+     * 
+     * @since 2.1
+     */
+    private void svnExport(String url, long revision, ExportEditor exportEditor) throws SVNException {
+        
+        SVNRepository tmprepo = SVNRepositoryFactory.create(SVNURL.parseURIEncoded(url));
         tmprepo.setAuthenticationManager(createAuthenticationManager());
         tmprepo.checkout(revision, null, true, exportEditor);
         tmprepo.closeSession();
     }
     
-    /**
-     * Converts an ArrayList of strings into a sorted array of strings.
-     * 
-     * @param list
-     *            the list to be sorted/converted
-     * @return the sorted/converted array
-     * 
-     * @since 1.00
-     */
-    private String[] sortnconvert(List<String> list) {
-        String[] foo = {};
-        foo = list.toArray(foo);
-        java.util.Arrays.sort(foo);
-        return foo;
-    }
-
-    /**
-     * Returns if a repository is writable. Therefore, a file of an arbitrary
-     * name is added to a temporary instance of the repository. This operation
-     * does not change the repository because it is not really commited.
-     * 
-     * @param repositoryURL
-     *            complete SVN access URL
-     * @return <code>true</code> if <code>repositoryURL</code> is writable,
-     *         <code>false</code> else
-     * 
-     * @throws SVNException in the case of an erroneous repository communication
-     * 
-     * @since 1.00
-     */
-    private boolean isRepositoryWritable(String repositoryURL)
-        throws SVNException {
-        SVNRepository tmprepository = SVNRepositoryFactory.create(SVNURL
-            .parseURIEncoded(repositoryURL));
-        tmprepository.setAuthenticationManager(createAuthenticationManager());
-        ISVNEditor editor = tmprepository.getCommitEditor(
-            "writing test (to be ignored)", null);
-        boolean result = false;
-        try {
-            editor.openRoot(-1);
-            editor.addFile(".schreibtest", null, -1);
-            editor.abortEdit();
-            result = true;
-        } catch (SVNException e) {
-            try {
-                editor.abortEdit();
-            } catch (SVNException e1) {
-            }
-        }
-        tmprepository.closeSession();
-        return result;
-    }
+//    /**
+//     * Returns if a repository is writable. Therefore, a file of an arbitrary name is added to a temporary instance of
+//     * the repository. This operation does not change the repository because it is not really commited.
+//     * 
+//     * @param repositoryURL complete SVN access URL
+//     * @return <code>true</code> if <code>repositoryURL</code> is writable, <code>false</code> else
+//     * 
+//     * @throws SVNException in the case of an erroneous repository communication
+//     * 
+//     * @since 1.00
+//     */
+//    private boolean isRepositoryWritable(String repositoryURL)
+//        throws SVNException {
+//        SVNRepository tmprepository = SVNRepositoryFactory.create(SVNURL.parseURIEncoded(repositoryURL));
+//        tmprepository.setAuthenticationManager(createAuthenticationManager());
+//        ISVNEditor editor = tmprepository.getCommitEditor("writing test (to be ignored)", null);
+//        boolean result = false;
+//        try {
+//            editor.openRoot(-1);
+//            editor.addFile(".schreibtest", null, -1);
+//            editor.abortEdit();
+//            result = true;
+//        } catch (SVNException e) {
+//            try {
+//                editor.abortEdit();
+//            } catch (SVNException e1) {
+//            }
+//        }
+//        tmprepository.closeSession();
+//        return result;
+//    }
 
     @Override
     public String getSubmissionLog(String task, String userName) 
         throws CommunicationException {
-        if (null == logRepository && null != logServer 
-            && logServer.length() > 0) {
+        if (null == logRepository && null != logServer && logServer.length() > 0) {
             try {
-                logRepository = SVNRepositoryFactory.create(SVNURL
-                    .parseURIEncoded(logServer));
+                logRepository = SVNRepositoryFactory.create(SVNURL.parseURIEncoded(logServer));
             } catch (SVNException e) {
-                throw new CommunicationException(
-                    CommunicationException.SubmissionPublicMessage.
+                throw new CommunicationException(CommunicationException.SubmissionPublicMessage.
                     INVALID_REPOSITORY_URL, e);
             }
             // do not call SVNWCUtil.createDefaultAuthenticationManager because
             // it will return a special authentication manager for eclipse which
             // will not work for our purposes
-            logRepository.setAuthenticationManager(
-                createAuthenticationManager());
+            logRepository.setAuthenticationManager(createAuthenticationManager());
         }
         String result = null;
         if (null != logRepository) {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             try {
-                logRepository.getFile(composePath(task, null == userName 
-                    ? getUserName(true) : userName) + "/review.txt", -1, 
-                    null, out);
+                logRepository.getFile(composePath(task, 
+                    null == userName ? getUserName(true) : userName) + "/review.txt", -1, null, out);
                 result = out.toString();
                 out.close();
             } catch (SVNException e) {
-                throw new CommunicationException(
-                    CommunicationException.SubmissionPublicMessage.
-                    FILE_IO_ERROR, e);
+                throw new CommunicationException(CommunicationException.SubmissionPublicMessage.FILE_IO_ERROR, e);
             } catch (IOException e) {
                 // do nothing
             }

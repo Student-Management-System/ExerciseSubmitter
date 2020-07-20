@@ -1,16 +1,13 @@
 package de.uni_hildesheim.sse.exerciseSubmitter.eclipse.preferences;
 
-import org.eclipse.jface.preference.*;
-import org.eclipse.ui.IWorkbenchPreferencePage;
+import org.eclipse.jface.preference.FieldEditorPreferencePage;
+import org.eclipse.jface.preference.StringFieldEditor;
 import org.eclipse.ui.IWorkbench;
+import org.eclipse.ui.IWorkbenchPreferencePage;
 
 import de.uni_hildesheim.sse.exerciseSubmitter.configuration.IConfiguration;
-import de.uni_hildesheim.sse.exerciseSubmitter.configuration.
-    PreferenceConstants;
-import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils;
-import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils.DialogType;
-import de.uni_hildesheim.sse.exerciseSubmitter.submission.
-    SubmissionCommunication;
+import de.uni_hildesheim.sse.exerciseSubmitter.configuration.PreferenceConstants;
+import de.uni_hildesheim.sse.exerciseSubmitter.submission.SubmissionCommunication;
 
 /**
  * This class represents the preference page of the exercise submitter eclipse
@@ -20,9 +17,10 @@ import de.uni_hildesheim.sse.exerciseSubmitter.submission.
  * preference store that belongs to the main plug-in class. That way,
  * preferences can be accessed directly via the preference store.
  * 
- * @version 2.0
+ * @version 2.2
  * @since 2.0
  * @author Holger Eichelberger
+ * @author El-Sharkawy
  */
 public class ExerciseSubmitter extends FieldEditorPreferencePage implements
         IWorkbenchPreferencePage {
@@ -33,14 +31,7 @@ public class ExerciseSubmitter extends FieldEditorPreferencePage implements
      * @since 2.0
      */
     private StringFieldEditor userName;
-
-    /**
-     * Stores the group editor field.
-     * 
-     * @since 2.10
-     */
-    private StringFieldEditor groupName;
-    
+   
     /**
      * Stores the password editor field.
      * 
@@ -55,13 +46,6 @@ public class ExerciseSubmitter extends FieldEditorPreferencePage implements
      */
     private String userNameBefore = "";
 
-    /**
-     * Stores the user name before editing.
-     * 
-     * @since 2.10
-     */
-    private String groupNameBefore = "";
-    
     /**
      * Stores the password before editing.
      * 
@@ -90,19 +74,10 @@ public class ExerciseSubmitter extends FieldEditorPreferencePage implements
      * @since 2.0
      */
     public void createFieldEditors() {
-        if (IConfiguration.INSTANCE.isExplicitGroupNameEnabled()) {
-            groupName = new StringFieldEditor(PreferenceConstants.GROUPNAME,
-                "group/team name:", getFieldEditorParent());
-            addField(groupName);
-            groupName.setStringValue(IConfiguration.INSTANCE.getGroupName());
-            groupNameBefore = groupName.getStringValue();
-        }
-        userName = new StringFieldEditor(PreferenceConstants.USERNAME,
-            "user name:", getFieldEditorParent());
+        userName = new StringFieldEditor(PreferenceConstants.USERNAME, "user name:", getFieldEditorParent());
         addField(userName);
         userName.setStringValue(IConfiguration.INSTANCE.getUserName());
-        password = new StringFieldEditor(PreferenceConstants.PASSWORD,
-            "password:", getFieldEditorParent());
+        password = new StringFieldEditor(PreferenceConstants.PASSWORD, "password:", getFieldEditorParent());
         password.getTextControl(getFieldEditorParent()).setEchoChar('*');
         password.setStringValue(IConfiguration.INSTANCE.getPassword());
         addField(password);
@@ -119,27 +94,12 @@ public class ExerciseSubmitter extends FieldEditorPreferencePage implements
      */
     public boolean performOk() {
         boolean ok = true;
-        if (!userName.getStringValue().equals(userNameBefore)
-            || !password.getStringValue().equals(passwordBefore)
-            || (null != groupName 
-                && !groupName.getStringValue().equals(groupNameBefore))) {
+        if (!userName.getStringValue().equals(userNameBefore) || !password.getStringValue().equals(passwordBefore)) {
             SubmissionCommunication.clearInstances();
             userNameBefore = userName.getStringValue();
             passwordBefore = password.getStringValue();
             IConfiguration.INSTANCE.setUserName(userNameBefore);
             IConfiguration.INSTANCE.setPassword(passwordBefore);
-            if (null != groupName) {
-                if (IConfiguration.INSTANCE.isExplicitGroupNameEnabled() 
-                    && 0 == groupName.getStringValue().length()) {
-                    GuiUtils.openDialog(DialogType.ERROR, 
-                        "Empty group name not allowed!");
-                    ok = false;
-                } else {
-                    groupNameBefore = groupName.getStringValue();
-                    IConfiguration.INSTANCE.setGroupName(groupNameBefore);    
-                }
-            }
-            
             IConfiguration.INSTANCE.store();
         }
         return ok;

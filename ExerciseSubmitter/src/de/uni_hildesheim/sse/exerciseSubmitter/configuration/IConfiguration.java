@@ -110,20 +110,6 @@ public abstract class IConfiguration {
     }
     
     /**
-     * Returns if the user must specify an explicit group name in the 
-     * user settings.
-     * 
-     * @return <code>true</code> if explicit group name is required, 
-     *     <code>false</code> if the group name is equal to the user name
-     * 
-     * @since 2.10
-     */
-    public boolean isExplicitGroupNameEnabled() {
-        return globalprop.getProperty("explicitGroupName", "true")
-            .equalsIgnoreCase("true");
-    }
-    
-    /**
      * Whether we expect an XML response from the server.
      * 
      * @return <code>true</code> for XML response, 
@@ -134,42 +120,6 @@ public abstract class IConfiguration {
             .equalsIgnoreCase("true");
     }
 
-    /**
-     * Returns the explicit folder name. 
-     * Calls {@link #getExplicitFolderName(String)}.
-     * 
-     * @return the group name if
-     *    {@link #isExplicitGroupNameEnabled()} or 
-     *    <b>null</b> otherways 
-     * 
-     * @since 2.10
-     */
-    public String getExplicitFolderName() {
-        return getExplicitFolderName(getGroupName());
-    }
-    
-    /**
-     * Returns the explicit folder name [useful if user 
-     * data should not be stored in this configuration
-     * or validated first].
-     * 
-     * @param groupName the group name to be used
-     * @return the group name if
-     *    {@link #isExplicitGroupNameEnabled()} or 
-     *    <b>null</b> otherways 
-     * 
-     * @since 2.10
-     */
-    public String getExplicitFolderName(String groupName) {
-        String result;
-        if (isExplicitGroupNameEnabled()) {
-            result = groupName;
-        } else {
-            result = null;
-        }
-        return result;
-    }
-    
     /**
      * Retrieves arbitrary configuration values.
      * 
@@ -228,30 +178,6 @@ public abstract class IConfiguration {
      * @since 1.00
      */
     public abstract void setUserName(String userName);
-
-    /**
-     * Returns the current user submission group name (user local 
-     * configuration). This value is
-     * relevant dependent on {@link #isExplicitGroupNameEnabled()}
-     * 
-     * @return the current user submission group name or an empty string if no 
-     *         name was stored so far. 
-     * 
-     * @since 2.10
-     */
-    public abstract String getGroupName();
-    
-    /**
-     * Changes the user submission group name of the (user local configuration).
-     * Call {@link #store()} to make this change permanent. This value is
-     * relevant dependent on {@link #isExplicitGroupNameEnabled()}.
-     * 
-     * @param groupName
-     *            the user submission group name to be stored
-     * 
-     * @since 2.10
-     */
-    public abstract void setGroupName(String groupName);
     
     /**
      * Stores the user name in the user local configuration. A local

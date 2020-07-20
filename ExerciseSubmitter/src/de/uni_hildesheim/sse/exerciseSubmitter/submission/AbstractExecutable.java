@@ -1,5 +1,7 @@
 package de.uni_hildesheim.sse.exerciseSubmitter.submission;
 
+import net.ssehub.exercisesubmitter.protocol.frontend.Assignment;
+
 /**
  * An abstract basic implementation of the progress executable
  * with fixed generics type for this application.
@@ -33,12 +35,11 @@ public abstract class AbstractExecutable implements
     private ISubmission submission;
 
     /**
-     * Stores the name of the top-level directory on the 
-     * server to determine the path of the submission.
+     * Represents the task/exercise on the server to determine the path of the submission.
      * 
      * @since 2.00
      */
-    private String task;
+    private Assignment assignment;
 
     /**
      * Stores the progress listener for this executable.
@@ -51,16 +52,15 @@ public abstract class AbstractExecutable implements
      * Creates a new executable.
      * 
      * @param submission an object describing the parameters of the submission
-     * @param task the top-level directory denoting the exercise/task in the 
-     *        repository
+     * @param assignment Representation of the task/exercise on the server to determine the path of the submission.
      * 
      * @since 2.00
      */
-    public AbstractExecutable(ISubmission submission, String task) {
+    public AbstractExecutable(ISubmission submission, Assignment assignment) {
         numberOfSteps = 1;
         step = 1;
         this.submission = submission;
-        this.task = task;
+        this.assignment = assignment;
     }
 
     /**
@@ -97,15 +97,14 @@ public abstract class AbstractExecutable implements
     }
     
     /**
-     * Returns the associated top-level directory
-     * of the exercise/task.
+     * Returns the {@link Assignment} to be submitted/replayed.
      * 
      * @return the exercise/task
      * 
      * @since 2.00
      */
-    public String getTask() {
-        return task;
+    public Assignment getAssignment() {
+        return assignment;
     }
 
     /**
@@ -151,7 +150,9 @@ public abstract class AbstractExecutable implements
      * 
      * @since 2.00
      */
+    // checkstyle: stop exception type check
     protected abstract void executeStep(int step) throws Exception;
+    // checkstyle: resume exception type check
 
     /**
      * Executes all steps ({@link #executeStep(int)}) and notifies the listener.
@@ -170,7 +171,9 @@ public abstract class AbstractExecutable implements
                     listener.processedStep(step);
                 }
             }
+        // checkstyle: stop exception type check
         } catch (Exception e) {
+        // checkstyle: resume exception type check
             if (null != listener) {
                 listener.notifyExceptionOccurred(e);
             }

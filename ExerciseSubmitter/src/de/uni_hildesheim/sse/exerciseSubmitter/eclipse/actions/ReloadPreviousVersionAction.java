@@ -2,24 +2,24 @@ package de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 
 import de.uni_hildesheim.sse.exerciseSubmitter.configuration.IConfiguration;
+import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.AssignmentProjectMap;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.ISubmissionProject;
-import de.uni_hildesheim.sse.exerciseSubmitter.submission.ISubmission;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     CommunicationException;
+import de.uni_hildesheim.sse.exerciseSubmitter.submission.ISubmission;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.IVersionedSubmission;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.ServerAuthentication;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.Submission;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     SubmissionCommunication;
+import net.ssehub.exercisesubmitter.protocol.frontend.Assignment;
 
 /**
  * Implements an action object for the reload previous version action. This
@@ -60,34 +60,23 @@ public class ReloadPreviousVersionAction extends AbstractSubmissionAction {
      */
     public void run(IAction action) {
         if (!handleProjectListErrors()) {
-            List<SubmissionCommunication> connections = 
-                GuiUtils.validateConnections(IConfiguration.INSTANCE, null);
-            
-            boolean done = false;
-            for (Iterator<SubmissionCommunication> iterator = connections
-                .iterator(); !done && iterator.hasNext();) {
-                SubmissionCommunication comm = iterator.next();
-                if (comm.allowsReplay() && ServerAuthentication.getInstance().
-                    authenticate(comm, false)) {
-                    Map<String, ISubmissionProject> exercisesMap = mapProjects(
-                        getReplaySubmissions(comm), false, comm);
-                    for (Iterator<Map.Entry<String, ISubmissionProject>> iter = 
-                            exercisesMap.entrySet().iterator(); 
-                            iter.hasNext();) {
+            List<SubmissionCommunication> connections = GuiUtils.validateConnections(IConfiguration.INSTANCE, null);
+            MessageListener messageListener = new MessageListener();
+            for (SubmissionCommunication comm : connections) {
+                if (comm.allowsReplay() && ServerAuthentication.getInstance().authenticate(comm, false)) {
+                    AssignmentProjectMap exercisesMap = mapProjects(getReplaySubmissions(comm), false, comm);
+                    
+                    for (AssignmentProjectMap.Entry entry : exercisesMap) {
                         try {
-                            Map.Entry<String, ISubmissionProject> entry = iter
-                                .next();
-                            List<IVersionedSubmission> submissions = comm
-                                .getSubmissionsForReplay(entry.getKey());
+                            List<IVersionedSubmission> submissions = comm.getSubmissionsForReplay(
+                                entry.getAssignment());
                             
                             if (submissions.isEmpty()) {
-                                GuiUtils.openDialog(
-                                    GuiUtils.DialogType.INFORMATION, 
-                                    "This task was not submitted so far " 
-                                    + "- no data to replay.");
+                                GuiUtils.openDialog(GuiUtils.DialogType.INFORMATION,
+                                    "This task was not submitted so far - no data to replay.");
                             } else {
-                                replay(comm, submissions, entry);
-                                done = true;
+                                replay(comm, submissions, entry.getProject());
+                                break;
                             }
                         } catch (CommunicationException e) {
                             GuiUtils.handleThrowable(e);
@@ -95,8 +84,47 @@ public class ReloadPreviousVersionAction extends AbstractSubmissionAction {
                     }
                 }
             }
-
         }
+        
+        
+//        if (!handleProjectListErrors()) {
+//            List<SubmissionCommunication> connections = 
+//                GuiUtils.validateConnections(IConfiguration.INSTANCE, null);
+//            
+//            boolean done = false;
+//            for (Iterator<SubmissionCommunication> iterator = connections
+//                .iterator(); !done && iterator.hasNext();) {
+//                SubmissionCommunication comm = iterator.next();
+//                if (comm.allowsReplay() && ServerAuthentication.getInstance().
+//                    authenticate(comm, false)) {
+//                    Map<String, ISubmissionProject> exercisesMap = mapProjects(
+//                        getReplaySubmissions(comm), false, comm);
+//                    for (Iterator<Map.Entry<String, ISubmissionProject>> iter = 
+//                            exercisesMap.entrySet().iterator(); 
+//                            iter.hasNext();) {
+//                        try {
+//                            Map.Entry<String, ISubmissionProject> entry = iter
+//                                .next();
+//                            List<IVersionedSubmission> submissions = comm
+//                                .getSubmissionsForReplay(entry.getKey());
+//                            
+//                            if (submissions.isEmpty()) {
+//                                GuiUtils.openDialog(
+//                                    GuiUtils.DialogType.INFORMATION, 
+//                                    "This task was not submitted so far " 
+//                                    + "- no data to replay.");
+//                            } else {
+//                                replay(comm, submissions, entry);
+//                                done = true;
+//                            }
+//                        } catch (CommunicationException e) {
+//                            GuiUtils.handleThrowable(e);
+//                        }
+//                    }
+//                }
+//            }
+//
+//        }
     }
     
     /**
@@ -104,29 +132,22 @@ public class ReloadPreviousVersionAction extends AbstractSubmissionAction {
      * 
      * @param comm the communication instance
      * @param submissions the submissions to be replayed
-     * @param entry the selected entry
+     * @param project The selected project
      * 
      * @since 1.00
      */
-    private void replay(SubmissionCommunication comm, 
-        List<IVersionedSubmission> submissions, 
-        Map.Entry<String, ISubmissionProject> entry) {
-        Object[] result = GuiUtils.showListDialog(
-            "Replay project '" + entry.getValue().getName()
-            + "'", "Select the date of the version to be "
-            + "replayed", submissions, true);
+    private void replay(SubmissionCommunication comm, List<IVersionedSubmission> submissions, 
+        ISubmissionProject project) {
+        
+        Object[] result = GuiUtils.showListDialog("Replay project '" + project.getName() + "'",
+            "Select the date of the version to be replayed", submissions, true);
 
         if (null != result && result.length > 0) {
-            if (entry.getValue().
-                confirmOverwritingProject()) {
+            if (project.confirmOverwritingProject()) {
                 ISubmission abgabe = new Submission();
-                abgabe.setPath(new File(entry.getValue().
-                    getPath()));
-                GuiUtils.runReplay("Replaying submission", 
-                    comm, abgabe, 
-                    (IVersionedSubmission) result[0], 
-                    entry.getValue());
-                entry.getValue().refresh();
+                abgabe.setPath(new File(project.getPath()));
+                GuiUtils.runReplay("Replaying submission", comm, abgabe, (IVersionedSubmission) result[0], project);
+                project.refresh();
             }
         }
     }
@@ -139,17 +160,11 @@ public class ReloadPreviousVersionAction extends AbstractSubmissionAction {
      * 
      * @since 1.20
      */
-    private String[] getReplaySubmissions(SubmissionCommunication comm) {
-        List<String> submissions = new ArrayList<String>();
-        for (String s : comm.getAvailableForSubmission()) {
-            submissions.add(s);
-        }
-        for (String s : comm.getSubmissionsForReplay()) {
-            submissions.add(s);
-        }
-        String[] replaySubmissions = new String[submissions.size()];
-        submissions.toArray(replaySubmissions);
-        return replaySubmissions;
+    private List<Assignment> getReplaySubmissions(SubmissionCommunication comm) {
+        List<Assignment> submissions = new ArrayList<>();
+        submissions.addAll(comm.getAvailableForSubmission());
+        submissions.addAll(comm.getSubmissionsForReplay());
+        return submissions;
     }
 
     /**

@@ -88,8 +88,7 @@ public class ServerAuthentication {
      * 
      * @since 2.00
      */
-    public List<ISubmissionProject> mapProjects(
-        List<ISubmissionProject> projects, SubmissionCommunication comm) {
+    public List<ISubmissionProject> mapProjects(List<ISubmissionProject> projects, SubmissionCommunication comm) {
         return projects;
     }
 

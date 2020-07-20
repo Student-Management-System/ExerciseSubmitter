@@ -33,6 +33,7 @@ import de.uni_hildesheim.sse.exerciseSubmitter.submission.ProgressListener;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.Submission;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     SubmissionCommunication;
+import net.ssehub.exercisesubmitter.protocol.frontend.Assignment;
 
 /**
  * Implements some utilities for Eclipse GUI handling.
@@ -234,6 +235,10 @@ public class GuiUtils {
         final IVersionedSubmission replaySubmission, 
         ISchedulingRule schedulingRule) {
 
+        /**
+         * Implements a <i>long-running operation</i> to replay a submission with a progressbar.
+         *
+         */
         class RunnableWithProgress implements IRunnableWithProgress {
 
             private Exception exception;
@@ -254,8 +259,7 @@ public class GuiUtils {
                 ExecutableMonitorListener<ISubmission> listener = 
                     new ExecutableMonitorListener<ISubmission>(name, monitor);
                 try {
-                    comm.replaySubmission(submission, replaySubmission,
-                        listener);
+                    comm.replaySubmission(submission, replaySubmission, listener);
                 } catch (CommunicationException e) {
                     exception = e;
                 }
@@ -298,8 +302,7 @@ public class GuiUtils {
     }
 
     /**
-     * Replays the specified <code>task</code> from the repository to
-     * <code>submission</code>.
+     * Replays the specified <code>assignment</code> from the repository to <code>submission</code>.
      * 
      * @param name
      *            the name to be displayed in the progress window
@@ -307,8 +310,7 @@ public class GuiUtils {
      *            the submission communication object
      * @param submission
      *            the submission object
-     * @param task
-     *            the task/exercise (top-level directory) to be replayed
+     * @param assignment The task/exercise to be replayed
      * @param schedulingRule the scheduling rule/resource to be locked
      *        while execution, may be <code>ResourcesPlugin
      *        .getWorkspace().getRoot()</code>, <b>null</b> or a more
@@ -316,10 +318,13 @@ public class GuiUtils {
      * 
      * @since 2.00
      */
-    public static void runReplay(final String name,
-        final SubmissionCommunication comm, final ISubmission submission,
-        final String task, ISchedulingRule schedulingRule) {
+    public static void runReplay(final String name, final SubmissionCommunication comm, final ISubmission submission,
+        final Assignment assignment, ISchedulingRule schedulingRule) {
 
+        /**
+         * Implements a <i>long-running operation</i> to <b>replay</b> a submission with a progressbar.
+         *
+         */
         class RunnableWithProgress implements IRunnableWithProgress {
 
             private Exception exception;
@@ -340,7 +345,7 @@ public class GuiUtils {
                 ExecutableMonitorListener<ISubmission> listener = 
                     new ExecutableMonitorListener<ISubmission>(name, monitor);
                 try {
-                    comm.replaySubmission(submission, task, listener);
+                    comm.replaySubmission(submission, assignment, listener);
                 } catch (CommunicationException e) {
                     exception = e;
                 }
@@ -366,7 +371,7 @@ public class GuiUtils {
      * @param name the name to be displayed in the progress window
      * @param comm the submission communication object
      * @param path the target directory
-     * @param task the task/exercise (top-level directory) to be replayed
+     * @param assignment the task/exercise to be replayed
      * @param factory an instance able to create paths in the file system
      * @param schedulingRule the scheduling rule/resource to be locked
      *        while execution, may be <code>ResourcesPlugin
@@ -377,9 +382,13 @@ public class GuiUtils {
      */
     public static void runEntireReplay(final String name,
         final SubmissionCommunication comm, final File path,
-        final String task, final IPathFactory factory, 
+        final Assignment assignment, final IPathFactory factory, 
         ISchedulingRule schedulingRule) {
 
+        /**
+         * Implements a <i>long-running operation</i> to <b>replay</b> a submission with a progressbar.
+         *
+         */
         class RunnableWithProgress implements IRunnableWithProgress {
 
             private Exception exception;
@@ -400,7 +409,7 @@ public class GuiUtils {
                 ExecutableMonitorListener<ISubmission> listener = 
                     new ExecutableMonitorListener<ISubmission>(name, monitor);
                 try {
-                    comm.replayEntireTask(path, task, listener, factory);
+                    comm.replayEntireTask(path, assignment, listener, factory);
                 } catch (CommunicationException e) {
                     exception = e;
                 }
@@ -439,13 +448,13 @@ public class GuiUtils {
      *        submission messages
      * @param project the project to be submitted
      * @param comm the submission communication instance
-     * @param name the (real) name of the submitted project
+     * @param assignment The assignment to submit
      * 
      * @since 2.00
      */
-    public static final void submit(MessageListener messageListener, 
-        ISubmissionProject project, SubmissionCommunication comm, 
-        String name) {
+    public static final void submit(MessageListener messageListener, ISubmissionProject project,
+        SubmissionCommunication comm, Assignment assignment) {
+        
         messageListener.setProject(project);
         project.clearAllMarker();
         try {
@@ -456,26 +465,16 @@ public class GuiUtils {
                 projectFolder = new File(projectURI);
             }
             abgabe.setPath(projectFolder);
-            GuiUtils.runExecutable("Submitting '" 
-                + project.getName() + "'", 
-                comm.submit(abgabe, name), project);
+            GuiUtils.runExecutable("Submitting '" + project.getName() + "'", comm.submit(abgabe, assignment), project);
             String message;
             String msg;
             switch (abgabe.getResult()) {
             case SUCCESSFUL:
-                if (showSubmSuccess) {
-                    GuiUtils.openDialog(GuiUtils.DialogType.INFORMATION,
-                        "Looks good! Your project '"
-                        + project.getName()
-                        + "' was submitted.");
-                }
-                break;
+               // falls through
             case POST_SUCCESS:
                 if (showSubmSuccess) {
-                    GuiUtils.openDialog(GuiUtils.DialogType.INFORMATION,
-                        "Looks good! Your project '"
-                        + project.getName()
-                        + "' was submitted.");
+                    GuiUtils.openDialog(GuiUtils.DialogType.INFORMATION, "Looks good! Your project '"
+                        + project.getName() + "' was submitted.");
                 }
                 break;
             case POST_FAILED:
@@ -483,48 +482,36 @@ public class GuiUtils {
                 if (IConfiguration.INSTANCE.isDebuggingEnabled()) {
                     System.err.println(msg.toString());
                 }
-                message =  "Your project '" + project.getName() + "' was "
-                    + "submitted, but the automatic tests failed due to "
-                    + "one or more error(s)/warnings(s)" + " See problems "
-                    + "view. Note that these markers must be cleared manually "
-                    + "via the context menu of the view, as they are induced "
-                    + "by the submission server rather than your local Eclipse."
-                    + "\nWarnings are hints for optimisation (of functionality "
+                message =  "Your project '" + project.getName() + "' was submitted, but the automatic tests failed due "
+                    + "to one or more error(s)/warnings(s).\nSee problems view. Note that these markers must be "
+                    + "cleared manually via the context menu of the view, as they are induced by the submission server "
+                    + "rather than your local Eclipse.\nWarnings are hints for optimisation (of functionality "
                     + "and points).\nErrors may lead to a reduction of points.";
                 GuiUtils.openDialog(GuiUtils.DialogType.ERROR, message);
                 break;
             case FAILED:
                 msg = abgabe.getUnparsedMessage(messageListener);
                 if (0 == messageListener.getCount()) {
-                    message = "Your project '" + project.getName()
-                        + "' was rejected due to several "
-                        + "errors. Server misconfigured "
-                        + "for detailed error messages in "
-                        + "Eclipse.";
+                    message = "Your project '" + project.getName() + "' was rejected due to several errors. Server "
+                        + "misconfigured for detailed error messages in Eclipse.";
                     if (IConfiguration.INSTANCE.
                         isDebuggingEnabled()) {
                         System.err.println(msg);
                     }
                 } else {
-                    message = "Your project '" + project.getName()
-                        + "' was rejected due to "
+                    message = "Your project '" + project.getName() + "' was rejected due to "
                         + messageListener.getCount() + " error";
                     if (messageListener.getCount() > 1) {
-                        message += "s (see problems view, " 
-                            + "note that these markers must be " 
-                            + "removed manually via the context " 
-                            + "menu of the view, validate " 
-                            + "checkstyle configuration).";
+                        message += "s (see problems view, note that these markers must be removed manually via the "
+                            + "context menu of the view, validate checkstyle configuration).";
                     }
                 }
-                GuiUtils.openDialog(GuiUtils.DialogType.ERROR, 
-                    message);
+                GuiUtils.openDialog(GuiUtils.DialogType.ERROR, message);
                 break;
             case EMPTY:
                 if (showSubmSuccess) {
-                    GuiUtils.openDialog(GuiUtils.DialogType.INFORMATION, 
-                        "No relevant file changes were detected. No files " 
-                        + "have been submitted.");
+                    GuiUtils.openDialog(GuiUtils.DialogType.INFORMATION, "No relevant file changes were detected. "
+                        + "No files have been submitted.");
                 }
                 break;
             default:
@@ -555,6 +542,10 @@ public class GuiUtils {
     public static <F> F runExecutable(final String name,
         final Executable<F> executable, ISchedulingRule schedulingRule) {
 
+        /**
+         * Implements a <i>long-running operation</i> to execute an {@link Executable} with a progressbar.
+         *
+         */
         class RunnableWithProgress implements IRunnableWithProgress {
 
             private Exception exception;
@@ -601,15 +592,14 @@ public class GuiUtils {
     }
 
     /**
-     * Implements the default progress monitor listener to control the progress
-     * bar.
+     * Implements the default progress monitor listener to control the progress bar.
      * 
      * @author Holger Eichelberger
+     * @param <F> The type of the result to be returned.
      * @since 2.00
      * @version 2.00
      */
-    private static class ExecutableMonitorListener<F> implements
-        ProgressListener<F> {
+    private static class ExecutableMonitorListener<F> implements ProgressListener<F> {
 
         /**
          * Stores the attached progress monitor.
@@ -663,8 +653,7 @@ public class GuiUtils {
          * 
          * @since 2.00
          */
-        public ExecutableMonitorListener(String name, 
-            IProgressMonitor monitor) {
+        public ExecutableMonitorListener(String name, IProgressMonitor monitor) {
             this.name = name;
             this.monitor = monitor;
         }
@@ -803,10 +792,8 @@ public class GuiUtils {
      * 
      * @since 2.00
      */
-    public static List<SubmissionCommunication> validateConnections(
-        IConfiguration config, String submissionUser) {
-        return validateConnections(config.getUserName(), config.getPassword(), 
-            submissionUser, config.getExplicitFolderName());
+    public static List<SubmissionCommunication> validateConnections(IConfiguration config, String submissionUser) {
+        return validateConnections(config.getUserName(), config.getPassword(), submissionUser);
     }
     
     /**
@@ -843,16 +830,17 @@ public class GuiUtils {
      * @param password
      *            the password of <code>user</code>
      * @param submissionUser an optional specialized user name for submission
-     * @param explicitTargetFolder the explicit target folder if not to be 
-     *            derived from username (<b>null</b> otherways)
      * @return the (valid) communication instances
      * 
      * @since 2.10
      */
     public static List<SubmissionCommunication> validateConnections(
-        final String user, final String password, final String submissionUser, 
-        final String explicitTargetFolder) {
+        final String user, final String password, final String submissionUser) {
 
+        /**
+         * Implements a <i>long-running operation</i> to validate connections to the server.
+         *
+         */
         class RunnableWithProgress implements IRunnableWithProgress {
 
             private CommunicationException exception = null;
@@ -881,10 +869,8 @@ public class GuiUtils {
             public void run(IProgressMonitor monitor)
                 throws InvocationTargetException, InterruptedException {
                 try {
-                    result = SubmissionCommunication.getInstances(user,
-                        password, Activator.inReviewerMode(), submissionUser, 
-                        new SubmissionInstanceListener(monitor), 
-                        explicitTargetFolder);
+                    result = SubmissionCommunication.getInstances(user, password, Activator.inReviewerMode(),
+                        submissionUser, new SubmissionInstanceListener(monitor));
                 } catch (CommunicationException e) {
                     result = new ArrayList<SubmissionCommunication>();
                     exception = e;
@@ -1004,10 +990,8 @@ public class GuiUtils {
      * 
      * @since 2.00
      */
-    public static <T> Object[] showListDialog(String title, String message,
-        List<T> items, boolean multiple) {
-        ListRunnable<T> elr = 
-            new ListRunnable<T>(title, message, items, multiple);
+    public static <T> Object[] showListDialog(String title, String message, List<T> items, boolean multiple) {
+        ListRunnable<T> elr = new ListRunnable<T>(title, message, items, multiple);
         Display.getDefault().syncExec(elr);
         return elr.getResult();
     }

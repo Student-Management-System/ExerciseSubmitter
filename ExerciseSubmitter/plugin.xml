@@ -16,11 +16,6 @@
    
    <extension
          point="org.eclipse.core.runtime.preferences">
-      <initializer class="de.uni_hildesheim.sse.exerciseSubmitter.eclipse.preferences.PreferenceInitializer"/>
-   </extension>
-   
-   <extension
-         point="org.eclipse.core.runtime.preferences">
    </extension>
    
   <extension

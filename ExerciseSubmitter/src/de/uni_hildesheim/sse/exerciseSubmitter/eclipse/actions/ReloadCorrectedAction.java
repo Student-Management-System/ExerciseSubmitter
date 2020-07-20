@@ -1,14 +1,13 @@
 package de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions;
 
 import java.io.File;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 
 import de.uni_hildesheim.sse.exerciseSubmitter.configuration.IConfiguration;
+import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.AssignmentProjectMap;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.ISubmissionProject;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.ISubmission;
@@ -54,37 +53,58 @@ public class ReloadCorrectedAction extends AbstractSubmissionAction {
      */
     public void run(IAction action) {
         if (!handleProjectListErrors()) {
-            List<SubmissionCommunication> connections = 
-                GuiUtils.validateConnections(IConfiguration.INSTANCE, null);
-
-            boolean done = false;
-            for (Iterator<SubmissionCommunication> iterator = connections
-                .iterator(); !done && iterator.hasNext();) {
-                SubmissionCommunication comm = iterator.next();
-                if (comm.allowsReplay() && ServerAuthentication.getInstance().
-                    authenticate(comm, false)) {
-                    Map<String, ISubmissionProject> exercisesMap = mapProjects(
-                            comm.getSubmissionsForReplay(), true, comm);
-                    for (Iterator<Map.Entry<String, ISubmissionProject>> 
-                        iter = exercisesMap.entrySet().iterator(); 
-                        iter.hasNext();) {
-                        Map.Entry<String, ISubmissionProject> entry = iter
-                            .next();
-
-                        if (entry.getValue().confirmOverwritingProject()) {
+            List<SubmissionCommunication> connections = GuiUtils.validateConnections(IConfiguration.INSTANCE, null);
+            for (SubmissionCommunication comm : connections) {
+                if (comm.allowsReplay() && ServerAuthentication.getInstance().authenticate(comm, false)) {
+                    AssignmentProjectMap exercisesMap = mapProjects(comm.getSubmissionsForReplay(), true, comm);
+                    
+                    for (AssignmentProjectMap.Entry entry : exercisesMap) {
+                        ISubmissionProject project = entry.getProject();
+                        if (project.confirmOverwritingProject()) {
                             ISubmission abgabe = new Submission();
-                            abgabe.setPath(new File(entry.getValue().
-                                getPath()));
-                            GuiUtils.runReplay("Replaying corrected "
-                                + "submission", comm, abgabe, entry.getKey(), 
-                                entry.getValue());
-                            entry.getValue().refresh();
+                            abgabe.setPath(new File(entry.getProject().getPath()));
+                            GuiUtils.runReplay("Replaying corrected submission", comm, abgabe, entry.getAssignment(), 
+                                project);
+                            project.refresh();
                         }
                     }
-                    done = true;
                 }
             }
         }
+        
+        
+//        if (!handleProjectListErrors()) {
+//            List<SubmissionCommunication> connections = 
+//                GuiUtils.validateConnections(IConfiguration.INSTANCE, null);
+//
+//            boolean done = false;
+//            for (Iterator<SubmissionCommunication> iterator = connections
+//                .iterator(); !done && iterator.hasNext();) {
+//                SubmissionCommunication comm = iterator.next();
+//                if (comm.allowsReplay() && ServerAuthentication.getInstance().
+//                    authenticate(comm, false)) {
+//                    Map<String, ISubmissionProject> exercisesMap = mapProjects(
+//                            comm.getSubmissionsForReplay(), true, comm);
+//                    for (Iterator<Map.Entry<String, ISubmissionProject>> 
+//                        iter = exercisesMap.entrySet().iterator(); 
+//                        iter.hasNext();) {
+//                        Map.Entry<String, ISubmissionProject> entry = iter
+//                            .next();
+//
+//                        if (entry.getValue().confirmOverwritingProject()) {
+//                            ISubmission abgabe = new Submission();
+//                            abgabe.setPath(new File(entry.getValue().
+//                                getPath()));
+//                            GuiUtils.runReplay("Replaying corrected "
+//                                + "submission", comm, abgabe, entry.getKey(), 
+//                                entry.getValue());
+//                            entry.getValue().refresh();
+//                        }
+//                    }
+//                    done = true;
+//                }
+//            }
+//        }
     }
 
     /**

@@ -7,8 +7,9 @@ package de.uni_hildesheim.sse.exerciseSubmitter.submission;
  * (unexperienced) user.
  * 
  * @author Holger Eichelberger
+ * @author El-Sharkawy
  * @since 2.00
- * @version 2.00
+ * @version 2.1
  */
 public class CommunicationException extends Exception {
 
@@ -210,7 +211,15 @@ public class CommunicationException extends Exception {
          * 
          * @since 2.00
          */
-        INVALID_REVIEW_CREDITS("Number of credits is invalid");
+        INVALID_REVIEW_CREDITS("Number of credits is invalid"),
+        
+        /**
+         * Denotes the case that the number of review credits is
+         * invalid.
+         * 
+         * @since 2.00
+         */
+        UNABLE_TO_CONTACT_STUDENT_MANAGEMENT_SERVER("Could not contact student management server.");
 
         /**
          * Stores the message assigned to this message constant.
