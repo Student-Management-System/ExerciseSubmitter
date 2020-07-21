@@ -3,8 +3,8 @@ package de.uni_hildesheim.sse.exerciseSubmitter.configuration;
 /**
  * Constant definitions for plug-in preferences.
  * 
- * @version 2.00
- * @since 2.10
+ * @since 2.00
+ * @version 2.10
  * @author eichelberger
  */
 public class PreferenceConstants {
@@ -15,13 +15,6 @@ public class PreferenceConstants {
      * @since 2.00
      */
     public static final String USERNAME = "userName";
-    
-    /**
-     * Defines the preference constant for the user name.
-     * 
-     * @since 2.10
-     */
-    public static final String GROUPNAME = "groupName";
 
     /**
      * Defines the preference constant for the password.

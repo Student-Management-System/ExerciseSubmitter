@@ -22,8 +22,7 @@ import de.uni_hildesheim.sse.exerciseSubmitter.submission.SubmissionCommunicatio
  * @author Holger Eichelberger
  * @author El-Sharkawy
  */
-public class ExerciseSubmitter extends FieldEditorPreferencePage implements
-        IWorkbenchPreferencePage {
+public class ExerciseSubmitter extends FieldEditorPreferencePage implements IWorkbenchPreferencePage {
 
     /**
      * Stores the user editor field.
@@ -134,7 +133,6 @@ public class ExerciseSubmitter extends FieldEditorPreferencePage implements
      * 
      * @since 2.0
      */
-    public void init(IWorkbench workbench) {
-    }
+    public void init(IWorkbench workbench) { }
 
 }

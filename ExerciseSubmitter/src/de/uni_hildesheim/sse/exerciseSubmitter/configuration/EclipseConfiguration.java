@@ -58,10 +58,6 @@ class EclipseConfiguration extends AbstractUserConfiguration {
             password = securePreferences.get(PreferenceConstants.PASSWORD, "");
         } catch (StorageException se) {
         }
-        try {
-            groupName = securePreferences.get(PreferenceConstants.GROUPNAME, "");
-        } catch (StorageException se) {
-        }
     }
 
     /**
@@ -91,10 +87,6 @@ class EclipseConfiguration extends AbstractUserConfiguration {
         }
         try {
             securePreferences.put(PreferenceConstants.PASSWORD, password, true); 
-        } catch (StorageException se) {
-        }
-        try {
-            securePreferences.put(PreferenceConstants.GROUPNAME, groupName, false);
         } catch (StorageException se) {
         }
     }

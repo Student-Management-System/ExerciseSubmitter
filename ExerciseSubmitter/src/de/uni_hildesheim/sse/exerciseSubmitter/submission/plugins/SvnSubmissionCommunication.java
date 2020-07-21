@@ -39,6 +39,8 @@ import org.tmatesoft.svn.core.wc.admin.SVNChangeEntry;
 
 import de.uni_hildesheim.sse.exerciseSubmitter.Activator;
 import de.uni_hildesheim.sse.exerciseSubmitter.configuration.IConfiguration;
+import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils;
+import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils.DialogType;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.AbstractExecutable;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.CommonStuff;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
@@ -48,7 +50,6 @@ import de.uni_hildesheim.sse.exerciseSubmitter.submission.FileChecksumUtil;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.IPathFactory;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.ISubmission;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.IVersionedSubmission;
-import de.uni_hildesheim.sse.exerciseSubmitter.submission.PermissionMode;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.ProgressListener;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     SubmissionCommunication;
@@ -283,18 +284,20 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
      * 
      * @since 1.00
      */
-    public boolean authenticateUser() 
-        throws CommunicationException {
+    public boolean authenticateUser() throws CommunicationException {
+        try {
+            getStudentMgmtProtocol().login(getUserName(false), getPassword());
+        } catch (NetworkException e) {
+            throw new CommunicationException(CommunicationException.SubmissionPublicMessage.
+                UNABLE_TO_CONTACT_STUDENT_MANAGEMENT_SERVER, e);
+        }
         if (null != repository) {
             repository.closeSession();
         }
         try {
-            repository = SVNRepositoryFactory.create(SVNURL
-                .parseURIEncoded(server));
+            repository = SVNRepositoryFactory.create(SVNURL.parseURIEncoded(server));
         } catch (SVNException e) {
-            throw new CommunicationException(
-                CommunicationException.SubmissionPublicMessage.
-                INVALID_REPOSITORY_URL, e);
+            throw new CommunicationException(CommunicationException.SubmissionPublicMessage.INVALID_REPOSITORY_URL, e);
         }
         // do not call SVNWCUtil.createDefaultAuthenticationManager because
         // it will return a special authentication manager for eclipse which
@@ -337,15 +340,20 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
      * @since 2.00
      */
     public void reInitialize() throws CommunicationException {
-        availableForSubmission = getAssignments(PermissionMode.SUBMISSION);
-        availableForReplay = getAssignments(PermissionMode.REPLAY);
-        availableForReview = getAssignments(PermissionMode.REVIEW);
-        if (asReviewer) {
-            availableForSubmission.addAll(availableForReview);
+        try {
+            availableForSubmission = getStudentMgmtProtocol().getOpenAssignments();
+            availableForReplay = getStudentMgmtProtocol().getReviewableAssignments();
+            availableForReview = getStudentMgmtProtocol().getReviewedAssignments();
+            if (asReviewer) {
+                availableForSubmission.addAll(availableForReview);
+            }
+            availableForSubmission.sort((a1, a2) -> a1.getName().compareTo(a2.getName()));
+            availableForReplay.sort((a1, a2)     -> a1.getName().compareTo(a2.getName()));
+            availableForReview.sort((a1, a2)     -> a1.getName().compareTo(a2.getName()));
+        } catch (NetworkException e) {
+            GuiUtils.openDialog(DialogType.ERROR, "Could not query Studenten Management System to retrieve list of "
+                + "open assignments.");
         }
-        availableForSubmission.sort((a1, a2) -> a1.getName().compareTo(a2.getName()));
-        availableForReplay.sort((a1, a2)     -> a1.getName().compareTo(a2.getName()));
-        availableForReview.sort((a1, a2)     -> a1.getName().compareTo(a2.getName()));
     }
           // Belongs to reInitialize()
 //        Collection<?> entries;

@@ -7,7 +7,6 @@ import java.util.List;
 import de.uni_hildesheim.sse.exerciseSubmitter.configuration.IConfiguration;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils.DialogType;
-import net.ssehub.exercisesubmitter.protocol.backend.NetworkException;
 import net.ssehub.exercisesubmitter.protocol.backend.ServerNotFoundException;
 import net.ssehub.exercisesubmitter.protocol.backend.UnknownCredentialsException;
 import net.ssehub.exercisesubmitter.protocol.frontend.Assignment;
@@ -181,46 +180,46 @@ public abstract class SubmissionCommunication implements IPathFactory {
      */
     protected abstract boolean authenticateUser() throws CommunicationException;
 
-    /**
-     * Returns the top-level path/task/exercise names of exercises that can
-     * currently be submitted/reviewed/replayed.
-     * 
-     * @param mode specifies which kind of assignments shall be returned, must not be <tt>null</tt>.
-     * @return the top-level path/task/exercise names of exercises that can
-     *         currently be submitted/reviwed/replayed
-     * 
-     * @since 2.1
-     */
-    public List<Assignment> getAssignments(PermissionMode mode) {
-        List<Assignment> availableAssignments;
-        try {
-            switch (mode) {
-            case SUBMISSION:
-                availableAssignments = mgmtProtocol.getOpenAssignments();
-                break;
-            case REVIEW:
-                availableAssignments = mgmtProtocol.getReviewableAssignments();
-                break;
-            case REPLAY:
-                availableAssignments = mgmtProtocol.getReviewedAssignments();
-                break;
-            case INVISIBLE:
-                availableAssignments = new ArrayList<>();
-                break;
-            default:
-                System.err.println("Unexpected mode '" + mode + "' returning list of submitable assignments.");
-                availableAssignments = mgmtProtocol.getOpenAssignments();
-                break;
-            }
-        } catch (NetworkException e) {
-            GuiUtils.openDialog(DialogType.ERROR, "Could not query Studenten Management System to retrieve list of "
-                + "open assignments.");
-            availableAssignments = new ArrayList<>();
-        }
-        
-        return availableAssignments;
-    }
-    
+//    /**
+//     * Returns the top-level path/task/exercise names of exercises that can
+//     * currently be submitted/reviewed/replayed.
+//     * 
+//     * @param mode specifies which kind of assignments shall be returned, must not be <tt>null</tt>.
+//     * @return the top-level path/task/exercise names of exercises that can
+//     *         currently be submitted/reviwed/replayed
+//     * 
+//     * @since 2.1
+//     */
+//    public List<Assignment> getAssignments(PermissionMode mode) {
+//        List<Assignment> availableAssignments;
+//        try {
+//            switch (mode) {
+//            case SUBMISSION:
+//                availableAssignments = mgmtProtocol.getOpenAssignments();
+//                break;
+//            case REVIEW:
+//                availableAssignments = mgmtProtocol.getReviewableAssignments();
+//                break;
+//            case REPLAY:
+//                availableAssignments = mgmtProtocol.getReviewedAssignments();
+//                break;
+//            case INVISIBLE:
+//                availableAssignments = new ArrayList<>();
+//                break;
+//            default:
+//                System.err.println("Unexpected mode '" + mode + "' returning list of submitable assignments.");
+//                availableAssignments = mgmtProtocol.getOpenAssignments();
+//                break;
+//            }
+//        } catch (NetworkException e) {
+//            GuiUtils.openDialog(DialogType.ERROR, "Could not query Studenten Management System to retrieve list of "
+//                + "open assignments.");
+//            availableAssignments = new ArrayList<>();
+//        }
+//        
+//        return availableAssignments;
+//    }
+//    
     /**
      * Returns the user names (second-level directories).
      * 
