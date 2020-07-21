@@ -33,6 +33,7 @@ import de.uni_hildesheim.sse.exerciseSubmitter.submission.ProgressListener;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.Submission;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     SubmissionCommunication;
+import de.uni_hildesheim.sse.exerciseSubmitter.submission.plugins.SvnSubmissionCommunication;
 import net.ssehub.exercisesubmitter.protocol.frontend.Assignment;
 
 /**
@@ -1110,7 +1111,33 @@ public class GuiUtils {
             dlg.setInput(data);
             dlg.setMessage(message);
             dlg.setContentProvider(new ArrayContentProvider());
-            dlg.setLabelProvider(new LabelProvider());
+            if (data.length > 0) {
+                if (data[0] instanceof Assignment) {
+                    dlg.setLabelProvider(new LabelProvider() {
+                        
+                        @Override
+                        public String getText(Object element) {
+                            return ((Assignment) element).getName();
+                        }
+                    });
+                } else if (data[0] instanceof IVersionedSubmission) {
+                    dlg.setLabelProvider(new LabelProvider() {
+                    
+                        @Override
+                        public String getText(Object element) {
+                            IVersionedSubmission submission = (IVersionedSubmission) element;
+                            return submission.getDate() + " - " + submission.getAuthor();
+                        }
+                    });
+                } else {
+                    dlg.setLabelProvider(new LabelProvider());
+                }
+            } else {
+                dlg.setLabelProvider(new LabelProvider());
+            }
+            
+            
+            
             if (1 == listElements.size()) {
                 dlg.setInitialElementSelections(listElements);
             }

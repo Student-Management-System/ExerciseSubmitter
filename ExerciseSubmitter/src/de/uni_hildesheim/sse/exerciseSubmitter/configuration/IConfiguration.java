@@ -105,8 +105,7 @@ public abstract class IConfiguration {
      * @since 2.00
      */
     public boolean isDebuggingEnabled() {
-        return globalprop.getProperty("debug", "false")
-            .equalsIgnoreCase("true");
+        return globalprop.getProperty("debug", "false").equalsIgnoreCase("true");
     }
     
     /**

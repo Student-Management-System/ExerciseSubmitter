@@ -224,8 +224,14 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
     private String normalizeServerName(String server) {
         if (null != server) {
             // normalize values
-            if (!server.startsWith("https://")) {
-                server = "https://" + server;
+            if (Boolean.valueOf(IConfiguration.INSTANCE.getProperty("svn.https_only"))) {
+                if (!server.startsWith("https://")) {
+                    server = "https://" + server;
+                }                
+            } else {
+                if (!server.startsWith("https://") && !server.startsWith("http://")) {
+                    server = "https://" + server;
+                } 
             }
             if (!server.endsWith("/")) {
                 server = server + "/";
@@ -446,12 +452,12 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                     false);
                 for (Object o : revisions) {
                     SVNLogEntry entry = (SVNLogEntry) o;
-                    result.add(new SVNSubmission(entry.getDate(), entry.getRevision(), dest));
+                    result.add(new SVNSubmission(entry.getDate(), entry.getRevision(), entry.getAuthor(), dest));
                 }
             } else {
-                Collection<?> dirs = getDirs(repository, -1, dest.getSubmissionPath(), null);
+                Collection<SVNDirEntry> dirs = getDirs(repository, -1, dest.getSubmissionPath(), null);
                 if (dirs.size() > 0) {
-                    SVNSubmission resultSubmission = new SVNSubmission(new Date(), -1, dest);
+                    SVNSubmission resultSubmission = new SVNSubmission(new Date(), -1, "", dest);
                     resultSubmission.setDate("reviewed");
                     result.add(resultSubmission);
                 }
@@ -506,20 +512,29 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
          * @since 2.00
          */
         private SubmissionTarget remoteDestination;
+        
+        /**
+         * Stores the name of the user responsible for this revision.
+         * 
+         * @since 2.00
+         */
+        private String user;
 
         /**
          * Creates a new versioned submission instance.
          * 
          * @param date The date of the version
          * @param revision The SVN revision number
+         * @param user The user, who submitted this revision
          * @param remoteDestination The path of the associated task/exercise.
          * 
          * @since 2.00
          */
-        SVNSubmission(Date date, long revision, SubmissionTarget remoteDestination) {
+        SVNSubmission(Date date, long revision, String user, SubmissionTarget remoteDestination) {
             this.date = SUBMISSION_FORMAT.format(date);
             this.revision = revision;
             this.remoteDestination = remoteDestination;
+            this.user = user;
         }
 
         /**
@@ -575,6 +590,11 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
          */
         public String toString() {
             return date;
+        }
+
+        @Override
+        public String getAuthor() {
+            return user;
         }
     }
 
@@ -633,9 +653,9 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
      * 
      * @since 1.00
      */
-    private static Collection<SVNDirEntry> getDirs(SVNRepository repository,
-        long revision, String dir, Collection<SVNDirEntry> collection)
-        throws SVNException {
+    private static Collection<SVNDirEntry> getDirs(SVNRepository repository, long revision, String dir,
+        Collection<SVNDirEntry> collection) throws SVNException {
+        
         String prefixDir = dir;
         if (!prefixDir.endsWith("/")) {
             prefixDir += "/";
@@ -667,10 +687,9 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
      * 
      * @since 1.00
      */
-    private static Collection<SVNDirEntry> getDirs(SVNRepository repository,
-        long revision, String dir, String prefixDir, 
-        Collection<SVNDirEntry> collection)
-        throws SVNException {
+    private static Collection<SVNDirEntry> getDirs(SVNRepository repository, long revision, String dir,
+        String prefixDir, Collection<SVNDirEntry> collection) throws SVNException {
+        
         if (null == collection) {
             collection = new ArrayList<SVNDirEntry>();
         }
@@ -928,8 +947,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
          * 
          * @since 2.00
          */
-        private SVNCommExecutable(ISubmission submission, Assignment assignment) 
-            throws CommunicationException {
+        private SVNCommExecutable(ISubmission submission, Assignment assignment) throws CommunicationException {
             super(submission, assignment);
             if (availableForSubmission.contains(assignment)) {
                 submitDir = submission.getPath();
@@ -937,7 +955,8 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                 try {
                     SubmissionTarget destination = getStudentMgmtProtocol().getPathToSubmission(assignment);
                     String svnPath = destination.getAbsolutePathInRepository();
-                    numberOfCheckoutSteps = getDirs(repository, -1, svnPath, null).size();
+                    Collection<SVNDirEntry> dirs = getDirs(repository, -1, svnPath, null);
+                    numberOfCheckoutSteps = dirs.size();
                     numberOfSteps += numberOfCheckoutSteps;
                 } catch (SVNException e) {
                     throw new CommunicationException(CommunicationException.SubmissionPublicMessage.
@@ -1563,7 +1582,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
         List<SubmissionDirEntry> result = new ArrayList<SubmissionDirEntry>();
         try {
             String svnPath = getStudentMgmtProtocol().getPathToSubmission(assignment).getAbsolutePathInRepository();
-            Collection<SVNDirEntry> contents = getDirs(repository,  repository.getLatestRevision(), svnPath, null);
+            Collection<SVNDirEntry> contents = getDirs(repository, repository.getLatestRevision(), svnPath, null);
             for (SVNDirEntry entry : contents) {
                 SubmissionDirEntry newEnt = new SubmissionDirEntry(entry.getRelativePath(), entry.getSize(),
                     entry.getDate(), SVNNodeKind.DIR == entry.getKind(), entry.getAuthor());

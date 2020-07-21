@@ -40,52 +40,29 @@ public class ShowSubmissionAction extends AbstractSubmissionAction {
         super();
     }
 
-    /**
-     * Performs this action.
-     * <p>
-     * This method is called by the proxy action when the action has been
-     * triggered. Implement this method to do the actual work.
-     * </p>
-     * <p>
-     * <b>Note:</b> If the action delegate also implements
-     * <code>IActionDelegate2</code>, then this method is not invoked but
-     * instead the <code>runWithEvent(IAction, Event)</code> method is called.
-     * </p>
-     * 
-     * @param action the action proxy that handles the presentation portion 
-     *        of the action
-     *               
-     * @since 2.00
-     */
+    @Override
     public void run(IAction action) {
         if (!handleProjectListErrors()) {
-            List<SubmissionCommunication> connections = 
-                GuiUtils.validateConnections(IConfiguration.INSTANCE, null);
+            List<SubmissionCommunication> connections = GuiUtils.validateConnections(IConfiguration.INSTANCE, null);
             boolean found = false;
             boolean available = false;
             List<String> dirs = new ArrayList<String>();
-            for (Iterator<SubmissionCommunication> iterator = connections
-                .iterator(); !found && iterator.hasNext();) {
-                SubmissionCommunication comm = iterator.next();
-                if (ServerAuthentication.getInstance().
-                    authenticate(comm, true)) {
-                    List<ISubmissionProject> projects = 
-                        getSelectedProjects(comm);
+            for (int i = 0; i < connections.size() && !found; i++) {
+                SubmissionCommunication comm = connections.get(i);
+                if (ServerAuthentication.getInstance().authenticate(comm, true)) {
+                    List<ISubmissionProject> projects = getSelectedProjects(comm);
                     for (ISubmissionProject project : projects) {
-                        available |= handleEntries(
-                            project, comm, dirs, projects.size() > 1);
+                        available |= handleEntries(project, comm, dirs, projects.size() > 1);
                     }
                     found = true;
                 }
             }
             if (!dirs.isEmpty()) {
-                GuiUtils.showListDialog("Submitted files", "Submitted files", 
-                    dirs, false);
+                GuiUtils.showListDialog("Submitted files", "Submitted files", dirs, false);
             }
             if (!connections.isEmpty() && !available) {
-                GuiUtils.openDialog(GuiUtils.DialogType.INFORMATION, "The "
-                    + "selected task is currently not available, e.g. due "
-                    + "to review activities.");
+                GuiUtils.openDialog(GuiUtils.DialogType.INFORMATION, "The selected task is currently not available, "
+                    + "e.g. due to review activities.");
             }
         }
     }
@@ -117,30 +94,29 @@ public class ShowSubmissionAction extends AbstractSubmissionAction {
                  */
                 List<Assignment> exercisesList = new ArrayList<>();
                 exercisesList.addAll(comm.getAvailableForSubmission());
-                exercisesList.addAll(comm.getAvailableForSubmission());
+                exercisesList.addAll(comm.getSubmissionsForReplay());
                 Object[] selRes = GuiUtils.showListDialog("Project '" + name + "' does not match an exercise on the "
                     + "server", "Select the corresponding exercise", exercisesList, true);
                 if (null != selRes && selRes.length > 0) {
                     name = selRes[0].toString();
+                    assignment = getAssignment(comm, name);
                 }
             }
             
-            assignment = getAssignment(comm, name);
             if (null != assignment) {
                 available = true;
-                List <SubmissionDirEntry> entries = comm.getLastContents(assignment);
+                List<SubmissionDirEntry> entries = comm.getLastContents(assignment);
                 if (showProjectName) {
                     result.add(name + ":");
                 }
                 for (SubmissionDirEntry entry : entries) {
+                    String listEntry = entry.getPath();
                     if (!entry.isDirectory()) {
-                        result.add(entry.getPath() + " (" 
-                            + entry.getFormattedDate() + ", " 
-                            + entry.getFormattedSize() + ")");
+                        listEntry += " (" + entry.getFormattedDate() + ", " + entry.getFormattedSize() + ")";
                     } else {
-                        result.add(entry.getPath() + " (" 
-                            + entry.getFormattedDate() + ")");
+                        listEntry += " (" + entry.getFormattedDate() + ")";
                     }
+                    result.add(listEntry);
                 }
             }
         } catch (CommunicationException ce) {
@@ -157,7 +133,7 @@ public class ShowSubmissionAction extends AbstractSubmissionAction {
      * @return An open assignment (in submission/replay state) with the given name or <tt>null</tt>.
      */
     private static Assignment getAssignment(SubmissionCommunication comm, final String name) {
-        Stream<Assignment> availableAssignments = Streams.concat(comm.getSubmissionsForReplay().stream(),
+        Stream<Assignment> availableAssignments = Streams.concat(comm.getAvailableForSubmission().stream(),
             comm.getSubmissionsForReplay().stream());
         
         Assignment assignment = availableAssignments
