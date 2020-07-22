@@ -2,12 +2,9 @@ package de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
 
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
-
-import com.google.common.collect.Streams;
 
 import de.uni_hildesheim.sse.exerciseSubmitter.configuration.IConfiguration;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils;
