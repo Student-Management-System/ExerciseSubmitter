@@ -2,6 +2,8 @@ package de.uni_hildesheim.sse.exerciseSubmitter.submission;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import de.uni_hildesheim.sse.exerciseSubmitter.configuration.IConfiguration;
@@ -623,6 +625,28 @@ public abstract class SubmissionCommunication implements IPathFactory {
      */
     public static final SubmissionCommunication getInstance(int index) {
         return commInstances.get(index);
+    }
+    
+    /**
+     * Searches through the provided {@link Assignment}s for an assignment with the specified name and returns the
+     * first match.
+     * @param name The name of the searches {@link Assignment}.
+     * @param assignments Potential assignments to search for (e.g., for submissions, for review, or all).
+     * @return An assignment (first match) with the specified name, or <tt>null</tt> if it could not be found.
+     */
+    @SafeVarargs
+    public static Assignment searchForAssignment(String name, Collection<Assignment>... assignments) {
+        Assignment assignment = null;
+        if (null != assignments) {
+            for (int i = 0; i < assignments.length && null == assignment; i++) {
+                assignment = assignments[i].stream()
+                    .filter(a -> a.getName().equals(name))
+                    .findFirst()
+                    .orElse(null);
+            }
+        }
+        
+        return assignment;
     }
 
 }

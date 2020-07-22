@@ -137,15 +137,8 @@ public class ShowSubmissionAction extends AbstractSubmissionAction {
      * @return An open assignment (in submission/replay state) with the given name or <tt>null</tt>.
      */
     private static Assignment getAssignment(SubmissionCommunication comm, final String name) {
-        Stream<Assignment> availableAssignments = Streams.concat(comm.getAvailableForSubmission().stream(),
-            comm.getSubmissionsForReplay().stream());
-        
-        Assignment assignment = availableAssignments
-            .filter(a -> a.getName().equals(name))
-            .findFirst()
-            .orElse(null);
-        
-        return assignment;
+        return SubmissionCommunication.searchForAssignment(name, comm.getAvailableForSubmission(),
+            comm.getAvailableForSubmission());
     }
 
     /**
