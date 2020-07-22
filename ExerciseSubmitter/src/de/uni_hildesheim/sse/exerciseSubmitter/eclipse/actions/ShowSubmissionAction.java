@@ -1,7 +1,6 @@
 package de.uni_hildesheim.sse.exerciseSubmitter.eclipse.actions;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -47,18 +46,23 @@ public class ShowSubmissionAction extends AbstractSubmissionAction {
             boolean found = false;
             boolean available = false;
             List<String> dirs = new ArrayList<String>();
+            ISubmissionProject submittedProject = null;
             for (int i = 0; i < connections.size() && !found; i++) {
                 SubmissionCommunication comm = connections.get(i);
                 if (ServerAuthentication.getInstance().authenticate(comm, true)) {
                     List<ISubmissionProject> projects = getSelectedProjects(comm);
                     for (ISubmissionProject project : projects) {
                         available |= handleEntries(project, comm, dirs, projects.size() > 1);
+                        submittedProject = project;
                     }
                     found = true;
                 }
             }
             if (!dirs.isEmpty()) {
-                GuiUtils.showListDialog("Submitted files", "Submitted files", dirs, false);
+                String msg = submittedProject != null
+                    ? "Submission status of '" + submittedProject.getName() + "'"
+                    : "Submitted files";
+                GuiUtils.showListDialog("Submitted files", msg, dirs, false);
             }
             if (!connections.isEmpty() && !available) {
                 GuiUtils.openDialog(GuiUtils.DialogType.INFORMATION, "The selected task is currently not available, "
@@ -110,11 +114,11 @@ public class ShowSubmissionAction extends AbstractSubmissionAction {
                     result.add(name + ":");
                 }
                 for (SubmissionDirEntry entry : entries) {
-                    String listEntry = entry.getPath();
+                    String listEntry = entry.getPath() + " (" + entry.getFormattedDate() + " - " + entry.getAuthor();
                     if (!entry.isDirectory()) {
-                        listEntry += " (" + entry.getFormattedDate() + ", " + entry.getFormattedSize() + ")";
+                        listEntry += ", " + entry.getFormattedSize() + ")";
                     } else {
-                        listEntry += " (" + entry.getFormattedDate() + ")";
+                        listEntry += ")";
                     }
                     result.add(listEntry);
                 }

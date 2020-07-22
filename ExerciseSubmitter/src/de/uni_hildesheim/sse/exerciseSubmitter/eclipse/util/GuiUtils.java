@@ -1086,9 +1086,9 @@ public class GuiUtils {
          *            if multiple selection is allowed
          * @since 2.00
          */
-        public ListRunnable(String title, String message, 
-            List<T> listElements, boolean multiple) {
+        public ListRunnable(String title, String message, List<T> listElements, boolean multiple) {
             this.title = title;
+            this.message = message;
             this.listElements = listElements;
             this.multipleSelection = multiple;
         }
@@ -1108,6 +1108,7 @@ public class GuiUtils {
             dlg.setTitle(title);
             Object[] data = new Object[listElements.size()];
             listElements.toArray(data);
+            dlg.setWidthInChars(80);
             dlg.setInput(data);
             dlg.setMessage(message);
             dlg.setContentProvider(new ArrayContentProvider());
