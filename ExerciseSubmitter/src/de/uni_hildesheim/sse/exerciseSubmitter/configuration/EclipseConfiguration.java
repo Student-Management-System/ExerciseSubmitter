@@ -14,6 +14,8 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
+import org.eclipse.core.runtime.preferences.IEclipsePreferences;
+import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.equinox.security.storage.ISecurePreferences;
 import org.eclipse.equinox.security.storage.SecurePreferencesFactory;
 import org.eclipse.equinox.security.storage.StorageException;
@@ -22,6 +24,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import de.uni_hildesheim.sse.exerciseSubmitter.Activator;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     CommunicationException;
@@ -31,17 +34,25 @@ import de.uni_hildesheim.sse.exerciseSubmitter.submission.
  * {@link IConfiguration#INSTANCE} to retrieve an instance.
  * 
  * @author eichelberger
+ * @author El-Sharkawy
  * @since 2.00
- * @version 2.20
+ * @version 2.3
  */
 class EclipseConfiguration extends AbstractUserConfiguration {
 
     /**
      * Stores the secure preferences instances where to store passwords to.
+     * This data is shared between workspaces.
      * 
-     * @since 2.20
+     * @since 2.2
      */
     private ISecurePreferences securePreferences = SecurePreferencesFactory.getDefault();
+    
+    /**
+     * Stores uncritical data for a specific workspace.
+     * @since 2.3
+     */
+    private IEclipsePreferences wsSettings = InstanceScope.INSTANCE.getNode(Activator.PLUGIN_ID);
 
     
     /**
@@ -58,6 +69,9 @@ class EclipseConfiguration extends AbstractUserConfiguration {
             password = securePreferences.get(PreferenceConstants.PASSWORD, "");
         } catch (StorageException se) {
         }
+        
+        String assignmentAsJSON = wsSettings.get(PreferenceConstants.ASSIGNMENT, null);
+        setAssignment(assignmentAsJSON);
     }
 
     /**
@@ -88,6 +102,11 @@ class EclipseConfiguration extends AbstractUserConfiguration {
         try {
             securePreferences.put(PreferenceConstants.PASSWORD, password, true); 
         } catch (StorageException se) {
+        }
+        
+        String assignment = getAssignmentAsJSON();
+        if (null != assignment) {
+            wsSettings.put(PreferenceConstants.ASSIGNMENT, getAssignmentAsJSON());
         }
     }
     

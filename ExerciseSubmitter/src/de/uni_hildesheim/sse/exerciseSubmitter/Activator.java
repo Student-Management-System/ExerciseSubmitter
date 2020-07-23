@@ -36,7 +36,7 @@ public class Activator extends AbstractUIPlugin {
      * 
      * @since 2.00
      */
-    public static final String PLUGIN_ID = "ExerciseSubmitter";
+    public static final String PLUGIN_ID = "net.ssehub.ExerciseSubmitter";
 
     /**
      * Stores an instance of this plugin.
@@ -215,9 +215,7 @@ public class Activator extends AbstractUIPlugin {
                 @Override
                 public void run() {
                     try {
-                        SubmissionCommunication.getInstances(
-                            IConfiguration.INSTANCE, null, 
-                            reviewerMode, null);
+                        SubmissionCommunication.getInstances(IConfiguration.INSTANCE, null, reviewerMode, null);
                         
                     } catch (CommunicationException e) {
                     }

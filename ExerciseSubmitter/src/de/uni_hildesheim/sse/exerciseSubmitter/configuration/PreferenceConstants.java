@@ -4,8 +4,9 @@ package de.uni_hildesheim.sse.exerciseSubmitter.configuration;
  * Constant definitions for plug-in preferences.
  * 
  * @since 2.00
- * @version 2.10
+ * @version 2.2
  * @author eichelberger
+ * @author El-Sharkawy
  */
 public class PreferenceConstants {
 
@@ -14,14 +15,21 @@ public class PreferenceConstants {
      * 
      * @since 2.00
      */
-    public static final String USERNAME = "userName";
+    public static final String USERNAME = "net.ssehub.exercisesubmitter.userName";
 
     /**
      * Defines the preference constant for the password.
      * 
      * @since 2.00
      */
-    public static final String PASSWORD = "password";
+    public static final String PASSWORD = "net.ssehub.exercisesubmitter.password";
+    
+    /**
+     * Defines the preference constant for storing the currently reviews assignment.
+     * 
+     * @since 2.2
+     */
+    public static final String ASSIGNMENT = "net.ssehub.exercisesubmitter.assignment";
 
     /**
      * Prevents this class from being initialized from outside.
