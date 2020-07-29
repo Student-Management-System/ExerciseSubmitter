@@ -214,12 +214,19 @@ public class CommunicationException extends Exception {
         INVALID_REVIEW_CREDITS("Number of credits is invalid"),
         
         /**
-         * Denotes the case that the number of review credits is
-         * invalid.
+         * Denotes that the student management server could not be contacted.
          * 
-         * @since 2.00
+         * @since 2.1
          */
-        UNABLE_TO_CONTACT_STUDENT_MANAGEMENT_SERVER("Could not contact student management server.");
+        UNABLE_TO_CONTACT_STUDENT_MANAGEMENT_SERVER("Could not contact student management server."),
+        
+        /**
+         * Denotes that the searched data could not be found on the student management server.
+         * 
+         * @since 2.1
+         */
+        COULD_NOT_FIND_REQUESTED_DATA_ON_STUDENT_MANAGEMENT_SERVER("Could not find requested data on "
+            + "student management server.");
 
         /**
          * Stores the message assigned to this message constant.

@@ -1,7 +1,7 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Exercise Submitter Plug-in
-Bundle-SymbolicName: ExerciseSubmitter;singleton:=true
+Bundle-SymbolicName: net.ssehub.ExerciseSubmitter;singleton:=true
 Bundle-Version: 1.8.5
 Bundle-Activator: de.uni_hildesheim.sse.exerciseSubmitter.Activator
 Require-Bundle: org.eclipse.ui,

@@ -57,6 +57,8 @@ import de.uni_hildesheim.sse.exerciseSubmitter.submission.SubmissionDirEntry;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.SubmissionPlugin;
 import net.ssehub.exercisesubmitter.protocol.backend.NetworkException;
 import net.ssehub.exercisesubmitter.protocol.frontend.Assignment;
+import net.ssehub.exercisesubmitter.protocol.frontend.Assignment.State;
+import net.ssehub.exercisesubmitter.protocol.frontend.ExerciseReviewerProtocol;
 import net.ssehub.exercisesubmitter.protocol.frontend.SubmissionTarget;
 
 /**
@@ -348,8 +350,8 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
     public void reInitialize() throws CommunicationException {
         try {
             availableForSubmission = getStudentMgmtProtocol().getOpenAssignments();
-            availableForReplay = getStudentMgmtProtocol().getReviewableAssignments();
-            availableForReview = getStudentMgmtProtocol().getReviewedAssignments();
+            availableForReplay = getStudentMgmtProtocol().getReviewedAssignments();
+            availableForReview = getStudentMgmtProtocol().getReviewableAssignments();
             if (asReviewer) {
                 availableForSubmission.addAll(availableForReview);
             }
@@ -472,16 +474,16 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
         return result;
     }
     
-    /**
-     * Returns a composed path.
-     * 
-     * @param task the task name
-     * @param user the user name
-     * @return the composed path
-     */
-    private static String composePath(String task, String user) {
-        return task + "/" + user;
-    }
+//    /**
+//     * Returns a composed path.
+//     * 
+//     * @param task the task name
+//     * @param user the user name
+//     * @return the composed path
+//     */
+//    private static String composePath(String task, String user) {
+//        return task + "/" + user;
+//    }
 
     /**
      * Implements the versioned submission interface for SVN repositories.
@@ -953,7 +955,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                 submitDir = submission.getPath();
                 numberOfSteps = 1 + 1; // checkIn will follow
                 try {
-                    SubmissionTarget destination = getStudentMgmtProtocol().getPathToSubmission(assignment);
+                    SubmissionTarget destination = determinUploadDestination(assignment);
                     String svnPath = destination.getAbsolutePathInRepository();
                     Collection<SVNDirEntry> dirs = getDirs(repository, -1, svnPath, null);
                     numberOfCheckoutSteps = dirs.size();
@@ -970,6 +972,27 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                 throw new CommunicationException(CommunicationException.SubmissionPublicMessage.INVALID_SUBMISSION,
                     new Throwable());
             }
+        }
+
+        /**
+         * Computes where to upload the submission.
+         * @param assignment The assignment to upload.
+         * @return A specification that wraps all necessary information to upload the submission.
+         * @throws NetworkException If the student management server is not reachable.
+         */
+        private SubmissionTarget determinUploadDestination(Assignment assignment) throws NetworkException {
+            SubmissionTarget destination;
+            if (assignment.getState() == State.IN_REVIEW && asReviewer
+                && getStudentMgmtProtocol() instanceof ExerciseReviewerProtocol) {
+                
+                // In Review: Reviewer submits projects for other students
+                destination = ((ExerciseReviewerProtocol) getStudentMgmtProtocol()).getPathToSubmission(
+                    assignment, submitDir.getName());
+            } else {
+                // Default case: Protocol determines location
+                destination = getStudentMgmtProtocol().getPathToSubmission(assignment);
+            }
+            return destination;
         }
 
         /**
@@ -1037,7 +1060,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
             DAVRepositoryFactory.setup();
             SubmissionTarget destination;
             try {
-                destination = getStudentMgmtProtocol().getPathToSubmission(getAssignment());
+                destination = determinUploadDestination(getAssignment());
             } catch (NetworkException e) {
                 throw new CommunicationException(CommunicationException.SubmissionPublicMessage.
                     UNABLE_TO_CONTACT_STUDENT_MANAGEMENT_SERVER, e);
@@ -1547,8 +1570,8 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                     CommonStuff.rmdir(target, false);
                     exportEditor.setTargetDirectory(target);
                     try {
-                        svnExport(destFolder.getAssignmentName() + "/" + entry.getRelativePath(),
-                            repository.getLatestRevision(), exportEditor);
+                        String urlToSubmission = destFolder.getAllSubmissionsURL() + "/" + entry.getName();
+                        svnExport(urlToSubmission, repository.getLatestRevision(), exportEditor);
                         adjustFilesAfterReplay(target);
                     } catch (SVNException e) {
                         if (null == thrownException) {
@@ -1741,7 +1764,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
 //    }
 
     @Override
-    public String getSubmissionLog(String task, String userName) 
+    public String getSubmissionLog(Assignment task, String userName) 
         throws CommunicationException {
         if (null == logRepository && null != logServer && logServer.length() > 0) {
             try {
@@ -1759,12 +1782,15 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
         if (null != logRepository) {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             try {
-                logRepository.getFile(composePath(task, 
-                    null == userName ? getUserName(true) : userName) + "/review.txt", -1, null, out);
+                SubmissionTarget dest = getStudentMgmtProtocol().getPathToSubmission(task);
+                logRepository.getFile(dest.getAbsolutePathInRepository() + "/review.txt", -1, null, out);
                 result = out.toString();
                 out.close();
             } catch (SVNException e) {
                 throw new CommunicationException(CommunicationException.SubmissionPublicMessage.FILE_IO_ERROR, e);
+            } catch (NetworkException e) {
+                throw new CommunicationException(CommunicationException.SubmissionPublicMessage.
+                    UNABLE_TO_CONTACT_STUDENT_MANAGEMENT_SERVER, e);
             } catch (IOException e) {
                 // do nothing
             }

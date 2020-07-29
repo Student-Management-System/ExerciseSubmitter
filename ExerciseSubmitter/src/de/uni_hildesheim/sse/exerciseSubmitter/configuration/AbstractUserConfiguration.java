@@ -118,15 +118,12 @@ public abstract class AbstractUserConfiguration extends IConfiguration {
      * This is only used by the ExerciseReviewer and, thus, will return <tt>null</tt> at the ExerciseSubmitter.
      * @return The currently reviewed {@link Assignment} or <tt>null</tt> if not specified.
      */
+    @Override
     public Assignment getAssignment() {
         return assignment;
     }
     
-    /**
-     * Sets the currently reviewed assignment.
-     * This is only used by the ExerciseReviewer.
-     * @param assignment Sets the assignment, which is reviewed at the current workspace.
-     */
+    @Override
     public void setAsssignment(Assignment assignment) {
         this.assignment = assignment;
     }

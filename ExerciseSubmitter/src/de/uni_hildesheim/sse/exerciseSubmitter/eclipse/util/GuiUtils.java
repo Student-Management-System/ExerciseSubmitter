@@ -33,7 +33,6 @@ import de.uni_hildesheim.sse.exerciseSubmitter.submission.ProgressListener;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.Submission;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     SubmissionCommunication;
-import de.uni_hildesheim.sse.exerciseSubmitter.submission.plugins.SvnSubmissionCommunication;
 import net.ssehub.exercisesubmitter.protocol.frontend.Assignment;
 
 /**
@@ -363,7 +362,6 @@ public class GuiUtils {
         }
     }
 
-    // checkstyle: stop parameter number check
     
     /**
      * Replays all submissions of the the specified <code>task</code> 
@@ -381,13 +379,13 @@ public class GuiUtils {
      * 
      * @since 2.00
      */
-    public static void runEntireReplay(final String name,
-        final SubmissionCommunication comm, final File path,
-        final Assignment assignment, final IPathFactory factory, 
-        ISchedulingRule schedulingRule) {
+    // checkstyle: stop parameter number check
+    public static void runEntireReplay(final String name, final SubmissionCommunication comm, final File path,
+        final Assignment assignment, final IPathFactory factory, ISchedulingRule schedulingRule) {
+    // checkstyle: resume parameter number check
 
         /**
-         * Implements a <i>long-running operation</i> to <b>replay</b> a submission with a progressbar.
+         * Implements a <i>long-running operation</i> to <b>check-out all submissions</b> action with a progress bar.
          *
          */
         class RunnableWithProgress implements IRunnableWithProgress {
@@ -404,8 +402,7 @@ public class GuiUtils {
             }
 
             @Override
-            public void run(IProgressMonitor monitor)
-                throws InvocationTargetException, InterruptedException {
+            public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 
                 ExecutableMonitorListener<ISubmission> listener = 
                     new ExecutableMonitorListener<ISubmission>(name, monitor);
@@ -427,7 +424,6 @@ public class GuiUtils {
         }
     }
     
-    // checkstyle: resume parameter number check
     
     /**
      * Changes if submission success should be displayed.
@@ -483,7 +479,7 @@ public class GuiUtils {
                 if (IConfiguration.INSTANCE.isDebuggingEnabled()) {
                     System.err.println(msg.toString());
                 }
-                message =  "Your project '" + project.getName() + "' was submitted, but the automatic tests failed due "
+                message = "Your project '" + project.getName() + "' was submitted, but the automatic tests failed due "
                     + "to one or more error(s)/warnings(s).\nSee problems view. Note that these markers must be "
                     + "cleared manually via the context menu of the view, as they are induced by the submission server "
                     + "rather than your local Eclipse.\nWarnings are hints for optimisation (of functionality "
@@ -806,10 +802,8 @@ public class GuiUtils {
      * @param submissionUser an optional specialized user name for submission
      * @return a (valid) communication instance, <b>null</b> for none
      */
-    public static SubmissionCommunication getFirstReplayConnection(
-        IConfiguration config, String submissionUser) {
-        List<SubmissionCommunication> comm =
-            GuiUtils.validateConnections(config, submissionUser);
+    public static SubmissionCommunication getFirstReplayConnection(IConfiguration config, String submissionUser) {
+        List<SubmissionCommunication> comm =  GuiUtils.validateConnections(config, submissionUser);
         SubmissionCommunication replayComm = null;
         for (int i = 0; null == replayComm && i < comm.size(); i++) {
             if (comm.get(i).allowsReplay()) {

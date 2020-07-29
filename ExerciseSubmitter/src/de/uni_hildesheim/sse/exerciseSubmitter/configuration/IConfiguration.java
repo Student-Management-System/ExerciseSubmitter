@@ -8,6 +8,7 @@ import java.util.Properties;
 
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     CommunicationException;
+import net.ssehub.exercisesubmitter.protocol.frontend.Assignment;
 
 /**
  * Implements the basic access to configuration data. Configuration files are
@@ -194,5 +195,19 @@ public abstract class IConfiguration {
      * @since 2.00
      */
     public abstract void adjustFilesAfterReplay(File targetDir);
+    
+    /**
+     * Sets the currently reviewed assignment.
+     * This is only used by the ExerciseReviewer.
+     * @param assignment Sets the assignment, which is reviewed at the current workspace.
+     */
+    public abstract void setAsssignment(Assignment assignment);
+    
+    /**
+     * Returns the currently reviews assignment.
+     * This is only used by the ExerciseReviewer and, thus, will return <tt>null</tt> at the ExerciseSubmitter.
+     * @return The currently reviewed {@link Assignment} or <tt>null</tt> if not specified.
+     */
+    public abstract Assignment getAssignment();
 
 }

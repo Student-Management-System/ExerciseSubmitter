@@ -23,11 +23,16 @@ import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     CommunicationException;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     SubmissionCommunication;
+import net.ssehub.exercisesubmitter.protocol.backend.NetworkException;
+import net.ssehub.exercisesubmitter.protocol.frontend.Assignment;
+import net.ssehub.exercisesubmitter.protocol.frontend.ExerciseReviewerProtocol;
+import net.ssehub.exercisesubmitter.protocol.frontend.SubmitterProtocol;
 
 /**
  * The activator class controls the plug-in life cycle.
  * 
  * @since 2.00
+ * @version 2.1
  */
 public class Activator extends AbstractUIPlugin {
 
@@ -37,6 +42,8 @@ public class Activator extends AbstractUIPlugin {
      * @since 2.00
      */
     public static final String PLUGIN_ID = "net.ssehub.ExerciseSubmitter";
+    
+    private static final String REVIEWER_CLASS = "de.uni_hildesheim.sse.exerciseReviewer.eclipse.ReviewUtils";
 
     /**
      * Stores an instance of this plugin.
@@ -66,6 +73,15 @@ public class Activator extends AbstractUIPlugin {
      * @since 2.00
      */
     private static boolean reviewerMode = false;
+    
+    /**
+     * Stores <b>one</b> {@link SubmitterProtocol} instance for the ExerciseSubmitter/Reviewer.
+     * If the reviewer Plug-in ins installed, this will automatically be an instance of
+     * {@link ExerciseReviewerProtocol}.
+     * @since 2.1
+     */
+    private static SubmitterProtocol mgmtProtocol;
+    
     
     /**
      * Initializes the tasks.
@@ -208,15 +224,17 @@ public class Activator extends AbstractUIPlugin {
     // checkstyle: resume exception type check
         super.start(context);
         baseURL = context.getBundle().getEntry("/");
+        // Needs to be initialized before the communication instance is created.
+        initSubmitterProtocol();
         
-        if (isValidString(IConfiguration.INSTANCE.getUserName()) 
+        if (isValidString(IConfiguration.INSTANCE.getUserName())
             && isValidString(IConfiguration.INSTANCE.getPassword())) {
+            
             Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {
                     try {
                         SubmissionCommunication.getInstances(IConfiguration.INSTANCE, null, reviewerMode, null);
-                        
                     } catch (CommunicationException e) {
                     }
                 }
@@ -230,8 +248,50 @@ public class Activator extends AbstractUIPlugin {
         cal.set(Calendar.MINUTE, 0);
         cal.set(Calendar.HOUR, 1);
         cal.add(Calendar.DAY_OF_MONTH, 1);
-        timer.schedule(new ResetCommunicationTimerTask(), 
-            cal.getTime(), 24 * 60 * 1000);
+        timer.schedule(new ResetCommunicationTimerTask(), cal.getTime(), 24 * 60 * 1000);
+    }
+
+    /**
+     * Creates the single {@link SubmitterProtocol}, which should be used.
+     */
+    private void initSubmitterProtocol() {
+        /* 
+         * Check if reviewer is installed and load optimal Protocol.
+         * Critical routes should be protected independently of used protocol.
+         * Thus both plug-ins may use the ReviewerProtocol. However, for modularity reasons / separation of concerns
+         * we use the different protocol classes here
+         */
+        String authServer = IConfiguration.INSTANCE.getProperty("auth.server");
+        String stdmgmtServer = IConfiguration.INSTANCE.getProperty("stdmgmt.server");
+        String course = IConfiguration.INSTANCE.getProperty("course");
+        String svnServer = IConfiguration.INSTANCE.getProperty("svn.server");
+        String semester = IConfiguration.INSTANCE.getProperty("debug.semester");
+        try {
+            Class.forName(REVIEWER_CLASS);
+            ExerciseReviewerProtocol protocol = new ExerciseReviewerProtocol(authServer, stdmgmtServer, course,
+                svnServer);
+            if (null != semester && !semester.isBlank()) {
+                protocol.setSemester(semester);
+            }
+            
+            Assignment assignment = IConfiguration.INSTANCE.getAssignment();
+            if (null != assignment) {
+                // Init protocol for current assignment
+                try {
+                    protocol.loadAssessments(assignment);
+                } catch (NetworkException e) {
+                    e.printStackTrace();
+                }
+            }
+            
+            Activator.mgmtProtocol = protocol;
+        } catch (ClassNotFoundException e) {
+            Activator.mgmtProtocol = new SubmitterProtocol(authServer, stdmgmtServer, course, svnServer);
+            if (null != semester && !semester.isBlank()) {
+                Activator.mgmtProtocol.setSemester(semester);
+            }
+        }
+        
     }
     
     /**
@@ -309,6 +369,21 @@ public class Activator extends AbstractUIPlugin {
      */
     public static URL getBaseURL() {
         return baseURL;
+    }
+    
+    /**
+     * Returns the {@link SubmitterProtocol} to query the <b>student management server</b>.
+     * This protocol contains also the common business logic.
+     * If the ExerciseReviewer fragment is installed, this will automatically be an instance of
+     * {@link ExerciseReviewerProtocol}.
+     * Critical routes should be protected independently of used protocol.
+     * Thus both plug-ins may use the ReviewerProtocol. However, for modularity reasons / separation of concerns
+     * we use the different protocol classes here
+     * @return An instance of {@link SubmitterProtocol} or {@link ExerciseReviewerProtocol}. The user won't be logged in
+     *     at this point.
+     */
+    public static SubmitterProtocol getProtocol() {
+        return mgmtProtocol;
     }
     
     /**

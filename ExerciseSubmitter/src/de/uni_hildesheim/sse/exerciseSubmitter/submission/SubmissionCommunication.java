@@ -2,10 +2,10 @@ package de.uni_hildesheim.sse.exerciseSubmitter.submission;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import de.uni_hildesheim.sse.exerciseSubmitter.Activator;
 import de.uni_hildesheim.sse.exerciseSubmitter.configuration.IConfiguration;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils;
 import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils.DialogType;
@@ -71,10 +71,7 @@ public abstract class SubmissionCommunication implements IPathFactory {
      * @since 2.10
      */
     protected SubmissionCommunication(String username, String password) {
-        this.mgmtProtocol = new SubmitterProtocol(IConfiguration.INSTANCE.getProperty("auth.server"),
-            IConfiguration.INSTANCE.getProperty("stdmgmt.server"),
-            IConfiguration.INSTANCE.getProperty("course"),
-            IConfiguration.INSTANCE.getProperty("svn.server"));
+        this.mgmtProtocol = Activator.getProtocol();
         try {
             mgmtProtocol.login(username, password);
         } catch (UnknownCredentialsException e) {
@@ -415,8 +412,7 @@ public abstract class SubmissionCommunication implements IPathFactory {
      * @return the log (may be <b>null</b> for none)
      * @throws CommunicationException if any error occurs
      */
-    public abstract String getSubmissionLog(String task, String userName) 
-        throws CommunicationException;
+    public abstract String getSubmissionLog(Assignment task, String userName) throws CommunicationException;
     
     // --------- static instance administration -----------------------
 
