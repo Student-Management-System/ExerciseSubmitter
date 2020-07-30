@@ -94,7 +94,11 @@ public abstract class IConfiguration {
      * @since 1.00
      */
     public String getProperty(String key) {
-        return globalprop.getProperty(key);
+        String value = globalprop.getProperty(key);
+        if (null != value) {
+            value = value.trim();
+        }
+        return value;
     }
 
     /**
