@@ -37,11 +37,11 @@ IN NO EVENT SHALL TMATE SOFTWARE BE LIABLE FOR ANY DIRECT INDIRECT, INCIDENTAL, 
    </license>
 
    <url>
-      <update label="SSE Eclipse Plugins for Java I" url="http://praktikum.sse.uni-hildesheim.de/eclipse/javaI"/>
+      <update label="SSE Eclipse Plugins for Java I" url="https://praktikum.sse.uni-hildesheim.de/eclipse/javaI"/>
    </url>
 
    <plugin
-         id="ExerciseSubmitter"
+         id="net.ssehub.ExerciseSubmitter"
          download-size="0"
          install-size="0"
          version="0.0.0"
