@@ -114,6 +114,13 @@ public class CommunicationException extends Exception {
          * @since 2.00
          */
         INVALID_USER_PASSWORD("Invalid user/password combination."),
+        
+        /**
+         * Denotes that an attendee requested a tutors/teachers API. 
+         * 
+         * @since 2.1
+         */
+        INVALID_USER_ROLE("Invalid user role. This should only be requested by teachers."),
 
         /**
          * Denotes the case of an invalid (preconfigured) repository

@@ -17,6 +17,6 @@
 	<classpathentry kind="lib" path="libs/svnkit/svnkit-javahl16-1.10.1.jar"/>
 	<classpathentry kind="lib" path="libs/svnkit/trilead-ssh2-1.0.0-build222.jar"/>
 	<classpathentry kind="lib" path="libs/svnkit/antlr-runtime-3.4.jar"/>
-	<classpathentry kind="lib" path="libs/submitter-protocol-0.0.2-SNAPSHOT-jar-with-dependencies.jar"/>
+	<classpathentry kind="lib" path="libs/submitter-protocol-0.0.2-SNAPSHOT-jar-with-dependencies.jar" sourcepath="/Submitter-Protocol"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

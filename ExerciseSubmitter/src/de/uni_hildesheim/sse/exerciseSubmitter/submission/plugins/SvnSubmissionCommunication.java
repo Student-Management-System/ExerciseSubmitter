@@ -1536,12 +1536,12 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
             factory = this;
         }
 
-        SubmissionTarget destFolder = null;
-        try {
-            destFolder = getStudentMgmtProtocol().getPathToSubmission(assignment);
-        } catch (NetworkException e1) {
+        SubmissionTarget destFolder;
+        if (asReviewer) {
+            destFolder = ((ExerciseReviewerProtocol) getStudentMgmtProtocol()).getPathToSubmission(assignment, "");
+        } else {
             throw new CommunicationException(CommunicationException.SubmissionPublicMessage.
-                UNABLE_TO_CONTACT_STUDENT_MANAGEMENT_SERVER, e1);
+                INVALID_USER_ROLE, new Throwable());
         }
         SVNException thrownException = null;
         try {
