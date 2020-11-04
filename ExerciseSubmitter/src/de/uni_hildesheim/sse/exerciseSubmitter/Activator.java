@@ -268,6 +268,7 @@ public class Activator extends AbstractUIPlugin {
         String semester = IConfiguration.INSTANCE.getProperty("debug.semester");
         try {
             Class.forName(REVIEWER_CLASS);
+            reviewerMode = true;
             ExerciseReviewerProtocol protocol = new ExerciseReviewerProtocol(authServer, stdmgmtServer, course,
                 svnServer);
             if (null != semester && !semester.isBlank()) {
