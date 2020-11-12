@@ -19,11 +19,15 @@ import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 
 import de.uni_hildesheim.sse.exerciseSubmitter.configuration.IConfiguration;
+import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils;
+import de.uni_hildesheim.sse.exerciseSubmitter.eclipse.util.GuiUtils.DialogType;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     CommunicationException;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     SubmissionCommunication;
 import net.ssehub.exercisesubmitter.protocol.backend.NetworkException;
+import net.ssehub.exercisesubmitter.protocol.backend.ServerNotFoundException;
+import net.ssehub.exercisesubmitter.protocol.backend.UnknownCredentialsException;
 import net.ssehub.exercisesubmitter.protocol.frontend.Assignment;
 import net.ssehub.exercisesubmitter.protocol.frontend.ExerciseReviewerProtocol;
 import net.ssehub.exercisesubmitter.protocol.frontend.SubmitterProtocol;
@@ -277,11 +281,27 @@ public class Activator extends AbstractUIPlugin {
             
             Assignment assignment = IConfiguration.INSTANCE.getAssignment();
             if (null != assignment) {
-                // Init protocol for current assignment
-                try {
-                    protocol.loadAssessments(assignment);
-                } catch (NetworkException e) {
-                    e.printStackTrace();
+                // Init protocol for current assignment (requires a validated tutor)
+                String username = IConfiguration.INSTANCE.getUserName();
+                String password = IConfiguration.INSTANCE.getPassword();
+                
+                if (null != username && null != password) {
+                    try {
+                        protocol.login(username, password);
+                    } catch (UnknownCredentialsException e) {
+                        GuiUtils.openDialog(DialogType.ERROR, "Credentials are unknown by the student management "
+                            + "system, please check that you use your RZ credentials.");
+                    } catch (ServerNotFoundException e) {
+                        GuiUtils.openDialog(DialogType.ERROR, IConfiguration.INSTANCE.getProperty("stdmgmt.server")
+                            + " could not be reached, please check your internet connection.");
+                    }
+                    
+                    // Init protocol for current assignment
+                    try {
+                        protocol.loadAssessments(assignment);
+                    } catch (NetworkException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
             
