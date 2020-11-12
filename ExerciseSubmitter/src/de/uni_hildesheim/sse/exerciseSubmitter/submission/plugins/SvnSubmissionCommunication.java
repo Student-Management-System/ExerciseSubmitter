@@ -363,74 +363,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                 + "open assignments.");
         }
     }
-          // Belongs to reInitialize()
-//        Collection<?> entries;
-//
-//        // retrieve main repository directory contents
-//        try {
-//            entries = repository.getDir("", -1, null, (Collection<?>) null);
-//        } catch (SVNAuthenticationException e) {
-//            throw new CommunicationException(CommunicationException.SubmissionPublicMessage.INVALID_USER_PASSWORD, e);
-//        } catch (SVNException e) {
-//            throw new CommunicationException(CommunicationException.
-//                SubmissionPublicMessage.INVALID_REPOSITORY_STRUCTURE, e);
-//        }
-//
-//        // select and store directory entries
-//        Iterator<?> iterator = entries.iterator();
-//        ArrayList<SVNDirEntry> dirs = new ArrayList<SVNDirEntry>();
-//        while (iterator.hasNext()) {
-//            SVNDirEntry entry = (SVNDirEntry) iterator.next();
-//            if (entry.getKind() == SVNNodeKind.DIR) {
-//                dirs.add(entry);
-//            }
-//        }
-//
-//        Map<String, PermissionMode> permissions = readPermissions();
-//        for (SVNDirEntry dir : dirs) {
-//            boolean done = false;
-//            if (null != permissions) {
-//                String absPath = dir.getName();
-//                if (!absPath.startsWith("/")) {
-//                    absPath = "/" + absPath;
-//                }
-//                PermissionMode mode = permissions.get(absPath);
-//                if (null != mode) {
-//                    done = true;
-//                    switch (mode) {
-//                    case REPLAY:
-//                        availableForReplay.add(dir.getName());
-//                        break;
-//                    case REVIEW:
-//                        availableForReview.add(dir.getName());
-//                        if (asReviewer) {
-//                            availableForSubmission.add(dir.getName());
-//                        }
-//                        break;
-//                    case SUBMISSION:
-//                        availableForSubmission.add(dir.getName());
-//                        break;
-//                    case INVISIBLE:
-//                        break;
-//                    default:
-//                        done = false;
-//                        break;
-//                    }
-//                }
-//            } 
-//            if (!done) {
-//                try {
-//                    if (isRepositoryWritable(server + dir.getName() + "/" + getTargetFolder())) {
-//                        availableForSubmission.add(dir.getName());
-//                    } else {
-//                        repository.getDir(dir.getName(), -1, null, (Collection<?>) null);
-//                        availableForReplay.add(dir.getName());
-//                        availableForReview.add(dir.getName());
-//                    }
-//                } catch (SVNException e) {
-//                }
-//            }
-//        }
+
     /**
      * Returns the top-level path/task/exercise names of exercises that can
      * currently be reviewed.
