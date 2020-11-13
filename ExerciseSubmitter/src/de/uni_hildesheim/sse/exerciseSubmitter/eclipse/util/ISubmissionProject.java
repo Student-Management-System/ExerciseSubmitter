@@ -82,6 +82,7 @@ public abstract class ISubmissionProject implements ISchedulingRule {
      * @since 2.00
      */
     public IMarker createMarker(String type, String path) {
+        IMarker result = null;
         try {
             IResource resource = null == path ? getProject()
                 : getResource(path);
@@ -90,11 +91,11 @@ public abstract class ISubmissionProject implements ISchedulingRule {
                 resource = getProject();
             }
             if (null != resource) {
-                return resource.createMarker(type);
+                result = resource.createMarker(type);
             }
         } catch (CoreException e) {
         }
-        return null;
+        return result;
     }
     
     /**
@@ -114,11 +115,13 @@ public abstract class ISubmissionProject implements ISchedulingRule {
      */
     public IMarker[] getMarker(String type, boolean includeSubtypes, 
         int depth) {
+        IMarker[] result;
         try {
-            return getResource().findMarkers(type, includeSubtypes, depth);
+            result = getResource().findMarkers(type, includeSubtypes, depth);
         } catch (CoreException e) {
-            return null;
+            result = null;
         }
+        return result;
     }
 
     /**
@@ -225,11 +228,13 @@ public abstract class ISubmissionProject implements ISchedulingRule {
         } else {
             qn = new QualifiedName("", qualifiedName);
         }
+        String result;
         try {
-            return project.getPersistentProperty(qn);
+            result = project.getPersistentProperty(qn);
         } catch (CoreException e) {
-            return null;
+            result = null;
         }
+        return result;
     }
     
     /**

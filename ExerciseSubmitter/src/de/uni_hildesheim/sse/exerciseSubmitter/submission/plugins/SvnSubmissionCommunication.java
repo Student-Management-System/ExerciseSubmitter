@@ -754,7 +754,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
             String path = svnPath;
             int pos;
             int startPos = 0;
-            int opened = 0;
+//            int opened = 0;
             do {
                 pos = path.indexOf("/", startPos);
                 if (pos >= 0) {
@@ -764,7 +764,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                         editor.openDir(name, -1);
                         currentPath.push(name);
                     }
-                    opened++;
+//                    opened++;
                     startPos = pos + 1;
                 } else {
                     String name = path;
@@ -1357,8 +1357,11 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
                         } else {
                             elements.add(new FileInfo(SVNChangeEntry.TYPE_ADDED, SVNNodeKind.FILE, tFile, svnPath));
                         }
-                        try (FileChannel sourceChannel = new FileInputStream(file).getChannel();
-                             FileChannel targetChannel = new FileOutputStream(tFile).getChannel()) {
+                        try (FileInputStream sourceStream = new FileInputStream(file);
+                             FileOutputStream targetStream = new FileOutputStream(tFile)) {
+                            
+                            FileChannel sourceChannel = sourceStream.getChannel();
+                            FileChannel targetChannel = targetStream.getChannel();
                             
                             targetChannel.transferFrom(sourceChannel, 0, sourceChannel.size());
                             sourceChannel.close();
@@ -1578,7 +1581,7 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
     public ISubmission replaySubmission(ISubmission submission, IVersionedSubmission version,
         ProgressListener<ISubmission> listener) throws CommunicationException {
         
-        if (!(version instanceof IVersionedSubmission)) {
+        if (version == null) {
             throw new IllegalArgumentException();
         }
         

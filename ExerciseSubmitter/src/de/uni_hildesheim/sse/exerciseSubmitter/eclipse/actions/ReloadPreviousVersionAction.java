@@ -61,7 +61,7 @@ public class ReloadPreviousVersionAction extends AbstractSubmissionAction {
     public void run(IAction action) {
         if (!handleProjectListErrors()) {
             List<SubmissionCommunication> connections = GuiUtils.validateConnections(IConfiguration.INSTANCE, null);
-            MessageListener messageListener = new MessageListener();
+//            MessageListener messageListener = new MessageListener();
             for (SubmissionCommunication comm : connections) {
                 if (comm.allowsReplay() && ServerAuthentication.getInstance().authenticate(comm, false)) {
                     AssignmentProjectMap exercisesMap = mapProjects(getReplaySubmissions(comm), false, comm);

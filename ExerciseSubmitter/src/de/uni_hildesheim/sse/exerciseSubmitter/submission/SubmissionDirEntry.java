@@ -162,7 +162,7 @@ public class SubmissionDirEntry implements Comparable<SubmissionDirEntry> {
         double siz = size;
         int mag = 0;
         while (siz > 1024) {
-            siz /= (double) 1024;
+            siz /= 1024;
             mag++;
         }
         

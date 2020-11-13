@@ -82,7 +82,6 @@ public class ClearSelectedMarkerAction extends AbstractSubmissionAction {
      * 
      * @since 2.00
      */
-    @SuppressWarnings("unchecked")
     public void run(IAction action) {
         if (targetPart instanceof ViewPart) {
             ViewPart vp = (ViewPart) targetPart;
@@ -92,7 +91,7 @@ public class ClearSelectedMarkerAction extends AbstractSubmissionAction {
                 StructuredSelection ssel = (StructuredSelection) selection;
                 List<IMarker> toDelete = new ArrayList<IMarker>();
 
-                for (Iterator iter = ssel.iterator(); iter.hasNext();) {
+                for (Iterator<?> iter = ssel.iterator(); iter.hasNext();) {
                     Object selected = iter.next();
                     if (selected instanceof IMarker) {
                         IMarker marker = (IMarker) selected;

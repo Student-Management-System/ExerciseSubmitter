@@ -175,13 +175,16 @@ public class CommonStuff {
             if (parent.isDirectory() && !parent.exists()) {
                 parent.mkdirs();
             }
-            FileChannel sourceChannel = new FileInputStream(source)
-                .getChannel();
-            FileChannel targetChannel = new FileOutputStream(tFile)
-                .getChannel();
-            targetChannel.transferFrom(sourceChannel, 0, source.length());
-            targetChannel.close();
-            sourceChannel.close();
+            
+            try (FileInputStream sourceStream = new FileInputStream(source);
+                    FileOutputStream targetStream = new FileOutputStream(target)) {
+                FileChannel sourceChannel = sourceStream.getChannel();
+                FileChannel targetChannel = targetStream.getChannel();
+                
+                targetChannel.transferFrom(sourceChannel, 0, source.length());
+                targetChannel.close();
+                sourceChannel.close();
+            }
         }
     }
 

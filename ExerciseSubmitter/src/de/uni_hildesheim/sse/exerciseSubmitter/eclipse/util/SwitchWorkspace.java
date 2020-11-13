@@ -95,15 +95,18 @@ public class SwitchWorkspace {
      * @since 2.00
      */
     public static boolean switchWorkspace(String path) {
+        boolean willSwitch = false;
         String commandLine = buildCommandLine(path);
-        if (commandLine == null) {
-            return false;
-        }
-        System.setProperty(PROP_EXIT_CODE, Integer.toString(24));
-        System.setProperty(PROP_EXIT_DATA, commandLine);
-        PlatformUI.getWorkbench().getActiveWorkbenchWindow().getWorkbench().
+        
+        if (commandLine != null) {
+            System.setProperty(PROP_EXIT_CODE, Integer.toString(24));
+            System.setProperty(PROP_EXIT_DATA, commandLine);
+            PlatformUI.getWorkbench().getActiveWorkbenchWindow().getWorkbench().
             restart();
-        return true;
+            willSwitch = true;
+        }
+        
+        return willSwitch;
     }
 
     /**

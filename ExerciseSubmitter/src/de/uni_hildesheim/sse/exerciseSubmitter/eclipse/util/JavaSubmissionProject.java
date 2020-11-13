@@ -101,18 +101,19 @@ class JavaSubmissionProject extends ISubmissionProject {
      * @since 2.00
      */
     public IResource getResource(String path) {
+        IResource result = null;
         try {
             IJavaElement element = project.findElement(new Path(path));
             if (null != element && element.getResource() != null) {
-                return element.getResource();
+                result = element.getResource();
             } else {
                 IProject project = ResourcesPlugin.getWorkspace().
                     getRoot().getProject(getName());
-                return project.findMember(path);
+                result = project.findMember(path);
             }
         } catch (CoreException e) {
         }
-        return null;
+        return result;
     }
 
     /**
