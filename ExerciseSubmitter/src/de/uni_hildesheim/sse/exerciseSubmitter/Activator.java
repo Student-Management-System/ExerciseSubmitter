@@ -25,9 +25,11 @@ import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     CommunicationException;
 import de.uni_hildesheim.sse.exerciseSubmitter.submission.
     SubmissionCommunication;
+import net.ssehub.exercisesubmitter.protocol.backend.ForbiddenException;
 import net.ssehub.exercisesubmitter.protocol.backend.NetworkException;
 import net.ssehub.exercisesubmitter.protocol.backend.ServerNotFoundException;
 import net.ssehub.exercisesubmitter.protocol.backend.UnknownCredentialsException;
+import net.ssehub.exercisesubmitter.protocol.frontend.Assessment;
 import net.ssehub.exercisesubmitter.protocol.frontend.Assignment;
 import net.ssehub.exercisesubmitter.protocol.frontend.ExerciseReviewerProtocol;
 import net.ssehub.exercisesubmitter.protocol.frontend.SubmitterProtocol;
@@ -259,8 +261,7 @@ public class Activator extends AbstractUIPlugin {
      * Creates the single {@link SubmitterProtocol}, which should be used.
      */
     private void initSubmitterProtocol() {
-        /* 
-         * Check if reviewer is installed and load optimal Protocol.
+        /* Check if reviewer is installed and load optimal Protocol.
          * Critical routes should be protected independently of used protocol.
          * Thus both plug-ins may use the ReviewerProtocol. However, for modularity reasons / separation of concerns
          * we use the different protocol classes here
@@ -287,21 +288,18 @@ public class Activator extends AbstractUIPlugin {
                 
                 if (null != username && null != password) {
                     try {
-                        protocol.login(username, password);
+                        reviewerMode = protocol.login(username, password);
                     } catch (UnknownCredentialsException e) {
+                        reviewerMode = false;
                         GuiUtils.openDialog(DialogType.ERROR, "Credentials are unknown by the student management "
                             + "system, please check that you use your RZ credentials.");
                     } catch (ServerNotFoundException e) {
+                        reviewerMode = false;
                         GuiUtils.openDialog(DialogType.ERROR, IConfiguration.INSTANCE.getProperty("stdmgmt.server")
                             + " could not be reached, please check your internet connection.");
                     }
                     
-                    // Init protocol for current assignment
-                    try {
-                        protocol.loadAssessments(assignment);
-                    } catch (NetworkException e) {
-                        e.printStackTrace();
-                    }
+                    loadAssignmentData(protocol, assignment);
                 }
             }
             
@@ -313,6 +311,38 @@ public class Activator extends AbstractUIPlugin {
             }
         }
         
+    }
+
+    /**
+     * Loads the {@link Assessment}s from the server for the saved {@link Assignment} of the workspace during start up. 
+     * @param protocol The Protocol which is currently configured at the {@link #initSubmitterProtocol()} method.
+     * @param assignment An assignment which was previously configured for the current workspace.
+     */
+    private void loadAssignmentData(ExerciseReviewerProtocol protocol, Assignment assignment) {
+        // Cancel reviewer mode if user isn't logged in (to avoid errors)
+        // Init protocol for current assignment
+        if (reviewerMode) {
+            try {
+                protocol.loadAssessments(assignment);
+            } catch (ForbiddenException e) {
+                String msg = "Not logged in as a reviewer, cannot load assessment data from the server. "
+                        + "Please use credentials of a registered tutor/teacher and re-start Eclipse.";
+                GuiUtils.openDialog(DialogType.ERROR, msg);
+            } catch (NetworkException e) {
+                String msg = "Could not load assessements from server for assignment: '"
+                    + assignment.getName() + "'\nThis happened because, the workspace is configured for an "
+                    + "assessment, but an NetworkException occured contacting the student management "
+                    + "system at: " + IConfiguration.INSTANCE.getProperty("stdmgmt.server");
+                log(IStatus.ERROR, msg, e);
+            }
+        } else if (null != assignment) {
+            String msg = "Could not load assessements from server for assignment: '"
+                + assignment.getName() + "'\nThis happens if a workspace is configured for an "
+                + "assessment, but the credentials of the ExerciseReviewer could not be used to login "
+                + "the user to the student management system at: "
+                + IConfiguration.INSTANCE.getProperty("stdmgmt.server");
+            log(IStatus.ERROR, msg, new Throwable());
+        }
     }
     
     /**
@@ -416,8 +446,21 @@ public class Activator extends AbstractUIPlugin {
      * @since 2.00
      */
     public static void log(String message, Throwable throwable) {
-        plugin.getLog().log(new Status(IStatus.WARNING, PLUGIN_ID, 
-            message, throwable));
+        log(IStatus.WARNING, message, throwable);
+    }
+    
+    /**
+     * Logs the given throwable. Allows to specify the severity of the log.
+     * 
+     * @param severity Specifies if this is a warning or an error.
+     *     Please use constants of {@link IStatus} here.
+     * @param message an arbitrary text
+     * @param throwable the throwable
+     * 
+     * @since 2.1
+     */
+    public static void log(int severity, String message, Throwable throwable) {
+        plugin.getLog().log(new Status(severity, PLUGIN_ID, message, throwable));
     }
     
 }

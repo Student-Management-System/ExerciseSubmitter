@@ -8,6 +8,7 @@ import java.util.List;
 
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.jobs.ISchedulingRule;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
@@ -16,6 +17,8 @@ import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.ui.IWorkbench;
+import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.dialogs.ListDialog;
 import org.eclipse.ui.progress.IProgressService;
@@ -122,9 +125,20 @@ public class GuiUtils {
      *         {@link DialogType#CONFIRMATION}, <code>false</code> else
      */
     public static boolean openDialog(DialogType type, String msg) {
-        DialogRunnable runnable = new DialogRunnable(msg, type);
-        Display.getDefault().syncExec(runnable);
-        return runnable.getResult();
+        IWorkbench ui = PlatformUI.getWorkbench();
+        IWorkbenchWindow window = (null != ui) ? ui.getActiveWorkbenchWindow() : null;
+        
+        // During start up, UI may be disposed -> Do not open a dialog in this case
+        boolean result = false;
+        if (null != window) {
+            DialogRunnable runnable = new DialogRunnable(msg, type);
+            Display.getDefault().syncExec(runnable);
+            result = runnable.getResult();
+        } else {
+            Activator.log(IStatus.ERROR, msg, new Throwable());
+        }
+        
+        return result;
     }
 
     /**
