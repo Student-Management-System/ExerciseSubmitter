@@ -884,6 +884,10 @@ public class SvnSubmissionCommunication extends SubmissionCommunication {
          */
         private SVNCommExecutable(ISubmission submission, Assignment assignment) throws CommunicationException {
             super(submission, assignment);
+            
+            // Update list of submitable / reviewable projects before submission
+            reInitialize();
+            
             if (availableForSubmission.contains(assignment)) {
                 submitDir = submission.getPath();
                 numberOfSteps = 1 + 1; // checkIn will follow
