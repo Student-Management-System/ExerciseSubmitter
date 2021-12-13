@@ -14,7 +14,7 @@ Require-Bundle: org.eclipse.ui,
 Bundle-ActivationPolicy: lazy
 Bundle-ClassPath: .,
  bin/,
- libs/submitter-protocol-0.0.2-SNAPSHOT-jar-with-dependencies.jar,
+ libs/submitter-protocol-1.1.3-SNAPSHOT-jar-with-dependencies.jar,
  libs/svnkit/antlr-runtime-3.4.jar,
  libs/svnkit/jna-4.1.0.jar,
  libs/svnkit/jna-platform-4.1.0.jar,
